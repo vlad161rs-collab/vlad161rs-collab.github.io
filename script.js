@@ -510,39 +510,40 @@ imageModal.addEventListener('click', (e) => {
 // Предпросмотр изображений
 if (projectImages) {
     projectImages.addEventListener('change', (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) {
-        if (previewImagesData.length === 0) {
-            imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
-            imagePreview.classList.remove('has-images');
-            const addMoreBtn = document.getElementById('addMoreImagesBtn');
-            if (addMoreBtn) addMoreBtn.style.display = 'none';
-            setupUploadPlaceholder();
+        const files = Array.from(e.target.files);
+        if (files.length === 0) {
+            if (previewImagesData.length === 0) {
+                imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
+                imagePreview.classList.remove('has-images');
+                const addMoreBtn = document.getElementById('addMoreImagesBtn');
+                if (addMoreBtn) addMoreBtn.style.display = 'none';
+                setupUploadPlaceholder();
+            }
+            return;
         }
-        return;
-    }
-    
-    // Если это первая загрузка, заменяем все
-    // Если уже есть изображения, добавляем новые
-    const isFirstLoad = previewImagesData.length === 0;
-    
-    const readers = files.map(file => {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (event) => resolve(event.target.result);
-            reader.readAsDataURL(file);
+        
+        // Если это первая загрузка, заменяем все
+        // Если уже есть изображения, добавляем новые
+        const isFirstLoad = previewImagesData.length === 0;
+        
+        const readers = files.map(file => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => resolve(event.target.result);
+                reader.readAsDataURL(file);
+            });
         });
-    });
-    
-    Promise.all(readers).then(results => {
-        if (isFirstLoad) {
-            previewImagesData = results;
-            mainImageIndex = 0;
-        } else {
-            // Добавляем новые изображения к существующим
-            previewImagesData = [...previewImagesData, ...results];
-        }
-        displayImagePreviews(previewImagesData, mainImageIndex);
+        
+        Promise.all(readers).then(results => {
+            if (isFirstLoad) {
+                previewImagesData = results;
+                mainImageIndex = 0;
+            } else {
+                // Добавляем новые изображения к существующим
+                previewImagesData = [...previewImagesData, ...results];
+            }
+            displayImagePreviews(previewImagesData, mainImageIndex);
+        });
     });
 }
 
