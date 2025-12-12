@@ -288,17 +288,13 @@ function login(password) {
 // Отображение превью изображений
 function displayImagePreviews(images, currentMainIndex = 0) {
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
-    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
     
     if (!images || images.length === 0) {
         imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
         imagePreview.classList.remove('has-images');
         if (addMoreBtn) addMoreBtn.style.display = 'none';
         // Восстанавливаем обработчик клика на placeholder
-        const newPlaceholder = document.getElementById('uploadPlaceholder');
-        if (newPlaceholder) {
-            newPlaceholder.onclick = () => projectImages.click();
-        }
+        setupUploadPlaceholder();
         return;
     }
     
@@ -377,10 +373,7 @@ window.removePreviewImage = function(index) {
         const addMoreBtn = document.getElementById('addMoreImagesBtn');
         if (addMoreBtn) addMoreBtn.style.display = 'none';
         // Восстанавливаем обработчик клика на placeholder
-        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-        if (uploadPlaceholder) {
-            uploadPlaceholder.onclick = () => projectImages.click();
-        }
+        setupUploadPlaceholder();
     } else {
         displayImagePreviews(previewImagesData, mainImageIndex);
     }
@@ -527,13 +520,24 @@ if (addMoreImagesBtn) {
 }
 
 // Обработчик клика на placeholder для загрузки изображений
-const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-if (uploadPlaceholder) {
-    uploadPlaceholder.addEventListener('click', (e) => {
-        e.stopPropagation();
-        projectImages.click();
-    });
+function setupUploadPlaceholder() {
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    if (uploadPlaceholder) {
+        // Удаляем старые обработчики
+        const newPlaceholder = uploadPlaceholder.cloneNode(true);
+        uploadPlaceholder.parentNode.replaceChild(newPlaceholder, uploadPlaceholder);
+        
+        // Добавляем новый обработчик только на placeholder
+        newPlaceholder.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            projectImages.click();
+        });
+    }
 }
+
+// Инициализация при загрузке
+setupUploadPlaceholder();
 
 // Обработка формы
 projectForm.addEventListener('submit', (e) => {
@@ -609,10 +613,7 @@ function resetForm() {
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
     if (addMoreBtn) addMoreBtn.style.display = 'none';
     // Восстанавливаем обработчик клика на placeholder
-    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-    if (uploadPlaceholder) {
-        uploadPlaceholder.onclick = () => projectImages.click();
-    }
+    setupUploadPlaceholder();
     currentEditId = null;
     currentProjectImages = [];
     currentImageIndex = 0;

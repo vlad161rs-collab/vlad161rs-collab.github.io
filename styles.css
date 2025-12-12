@@ -405,12 +405,15 @@ body {
 }
 
 .image-upload input[type="file"] {
-    position: absolute;
+    position: fixed;
     opacity: 0;
     width: 0;
     height: 0;
     overflow: hidden;
     pointer-events: none;
+    left: -9999px;
+    top: -9999px;
+    z-index: -1;
 }
 
 .upload-placeholder {
