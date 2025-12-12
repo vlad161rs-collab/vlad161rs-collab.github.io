@@ -470,7 +470,7 @@ body {
 
 /* Modal */
 .modal {
-    display: none;
+    display: none !important;
     position: fixed;
     top: 0;
     left: 0;
@@ -485,7 +485,7 @@ body {
 }
 
 .modal.active {
-    display: flex;
+    display: flex !important;
 }
 
 @keyframes fadeIn {
