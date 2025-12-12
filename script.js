@@ -259,10 +259,30 @@ function updateAuthUI() {
 
 // Показать модальное окно авторизации
 function showAuthModal() {
+    if (!authModal) {
+        console.error('authModal not found');
+        return;
+    }
+    
     authModal.classList.add('active');
-    document.getElementById('adminPassword').focus();
-    authStatus.style.display = 'none';
-    authForm.reset();
+    
+    // Убеждаемся, что модальное окно видимо
+    authModal.style.display = 'flex';
+    
+    const passwordInput = document.getElementById('adminPassword');
+    if (passwordInput) {
+        setTimeout(() => {
+            passwordInput.focus();
+        }, 100);
+    }
+    
+    if (authStatus) {
+        authStatus.style.display = 'none';
+    }
+    
+    if (authForm) {
+        authForm.reset();
+    }
 }
 
 // Вход в систему
@@ -411,11 +431,14 @@ if (authBtn) {
     authBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
+        console.log('Auth button clicked, isAuthenticated:', isAuthenticated);
+        
         if (isAuthenticated) {
             if (confirm('Вы уверены, что хотите выйти?')) {
                 logout();
             }
         } else {
+            console.log('Calling showAuthModal');
             showAuthModal();
         }
     });
@@ -423,6 +446,8 @@ if (authBtn) {
     // Дополнительная проверка - убеждаемся, что кнопка кликабельна
     authBtn.style.pointerEvents = 'auto';
     authBtn.style.cursor = 'pointer';
+} else {
+    console.error('authBtn not found');
 }
 
 // Обработка формы авторизации
