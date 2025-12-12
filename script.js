@@ -400,7 +400,9 @@ addBtn.addEventListener('click', () => {
     currentEditId = null;
     modalTitle.textContent = 'Добавить проект';
     projectForm.reset();
-    imagePreview.innerHTML = '<span>Выберите изображения</span>';
+    imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
+    imagePreview.classList.remove('has-images');
+    setupUploadPlaceholder();
     projectModal.classList.add('active');
 });
 
@@ -477,11 +479,11 @@ projectImages.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) {
         if (previewImagesData.length === 0) {
-            imagePreview.innerHTML = '<span>Выберите изображения</span>';
-            imagePreview.style.pointerEvents = 'auto';
-            projectImages.style.pointerEvents = 'auto';
+            imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
+            imagePreview.classList.remove('has-images');
             const addMoreBtn = document.getElementById('addMoreImagesBtn');
             if (addMoreBtn) addMoreBtn.style.display = 'none';
+            setupUploadPlaceholder();
         }
         return;
     }
@@ -515,29 +517,51 @@ const addMoreImagesBtn = document.getElementById('addMoreImagesBtn');
 if (addMoreImagesBtn) {
     addMoreImagesBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        projectImages.click();
+        e.preventDefault();
+        if (projectImages) {
+            projectImages.click();
+        }
     });
 }
 
 // Обработчик клика на placeholder для загрузки изображений
 function setupUploadPlaceholder() {
-    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-    if (uploadPlaceholder) {
-        // Удаляем старые обработчики
-        const newPlaceholder = uploadPlaceholder.cloneNode(true);
-        uploadPlaceholder.parentNode.replaceChild(newPlaceholder, uploadPlaceholder);
+    // Удаляем все старые обработчики
+    const oldPlaceholder = document.getElementById('uploadPlaceholder');
+    if (oldPlaceholder) {
+        const newPlaceholder = oldPlaceholder.cloneNode(true);
+        oldPlaceholder.parentNode.replaceChild(newPlaceholder, oldPlaceholder);
         
-        // Добавляем новый обработчик только на placeholder
-        newPlaceholder.addEventListener('click', (e) => {
+        // Добавляем новый обработчик ТОЛЬКО на placeholder
+        newPlaceholder.addEventListener('click', function(e) {
             e.stopPropagation();
             e.preventDefault();
-            projectImages.click();
+            if (projectImages) {
+                projectImages.click();
+            }
         });
     }
 }
 
 // Инициализация при загрузке
 setupUploadPlaceholder();
+
+// Обработка формы - предотвращаем случайные клики
+projectForm.addEventListener('click', (e) => {
+    // Разрешаем клики только на определенных элементах
+    const target = e.target;
+    const isAllowed = target.closest('.upload-placeholder') || 
+                     target.closest('.add-more-images-btn') ||
+                     target.closest('.image-preview-item') ||
+                     target.closest('input') ||
+                     target.closest('textarea') ||
+                     target.closest('button') ||
+                     target.closest('label');
+    
+    if (!isAllowed) {
+        e.stopPropagation();
+    }
+});
 
 // Обработка формы
 projectForm.addEventListener('submit', (e) => {

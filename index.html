@@ -49,7 +49,7 @@
                 <h2 id="modalTitle">Добавить проект</h2>
                 <button class="close-btn" id="closeModal">&times;</button>
             </div>
-            <form id="projectForm" class="project-form">
+            <form id="projectForm" class="project-form" onclick="event.stopPropagation();">
                 <div class="form-group">
                     <label for="projectImages">Изображения (можно выбрать несколько)</label>
                     <small class="form-hint">Кликните на изображение, чтобы сделать его главным (будет показано на карточке)</small>
