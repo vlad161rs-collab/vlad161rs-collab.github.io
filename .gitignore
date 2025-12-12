@@ -1,0 +1,25 @@
+# Операционные системы
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Временные файлы
+*.tmp
+*.log
+*.cache
+
+# Node modules (если будет использоваться)
+node_modules/
+package-lock.json
+
+# Служебные файлы
+*.bak
+*.backup
+

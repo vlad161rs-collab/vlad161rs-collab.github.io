@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Modern portfolio with project gallery">
+    <title>Portfolio</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="background-animation"></div>
+    
+    <header class="header">
+        <div class="container">
+            <h1 class="logo">Portfolio</h1>
+            <div class="header-actions">
+                <button class="auth-btn" id="authBtn">
+                    <span id="authBtnText">🔐 Login</span>
+                </button>
+                <button class="add-btn" id="addBtn" style="display: none;">
+                    <span class="add-icon">+</span>
+                    <span>Add Project</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="portfolio-grid" id="portfolioGrid">
+                <!-- Проекты будут добавляться динамически -->
+            </div>
+            
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">📸</div>
+                <h2>Portfolio is empty</h2>
+                <p>Click "Add Project" button to get started</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Модальное окно для добавления/редактирования проекта -->
+    <div class="modal" id="projectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Добавить проект</h2>
+                <button class="close-btn" id="closeModal">&times;</button>
+            </div>
+            <form id="projectForm" class="project-form">
+                <div class="form-group">
+                    <label for="projectImages">Изображения (можно выбрать несколько)</label>
+                    <div class="image-upload">
+                        <input type="file" id="projectImages" accept="image/*" multiple required>
+                        <div class="images-preview" id="imagesPreview">
+                            <span>Выберите изображения</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="projectTitle">Название проекта</label>
+                    <input type="text" id="projectTitle" placeholder="Введите название" required>
+                </div>
+                <div class="form-group">
+                    <label for="projectDescription">Описание</label>
+                    <textarea id="projectDescription" rows="4" placeholder="Опишите ваш проект..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="projectLink">Ссылка (опционально)</label>
+                    <input type="url" id="projectLink" placeholder="https://example.com">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelBtn">Отмена</button>
+                    <button type="submit" class="btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Модальное окно для просмотра изображений -->
+    <div class="modal image-modal" id="imageModal">
+        <div class="modal-content image-modal-content">
+            <button class="close-btn" id="closeImageModal">&times;</button>
+            <div class="image-gallery" id="imageGallery">
+                <!-- Изображения будут добавлены динамически -->
+            </div>
+            <div class="image-info" id="imageInfo"></div>
+            <div class="gallery-controls">
+                <button class="gallery-btn" id="prevImage">‹</button>
+                <span class="gallery-counter" id="galleryCounter">1 / 1</span>
+                <button class="gallery-btn" id="nextImage">›</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для авторизации -->
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="authModalTitle">Вход в систему</h2>
+                <button class="close-btn" id="closeAuthModal">&times;</button>
+            </div>
+            <form id="authForm" class="project-form">
+                <div class="form-group">
+                    <label for="adminPassword">Пароль администратора</label>
+                    <input type="password" id="adminPassword" placeholder="Введите пароль" required autocomplete="off">
+                    <small class="form-hint">Введите пароль для доступа к редактированию</small>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelAuthBtn">Отмена</button>
+                    <button type="submit" class="btn-primary">Войти</button>
+                </div>
+            </form>
+            <div class="auth-status" id="authStatus"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
