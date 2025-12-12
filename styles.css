@@ -448,6 +448,18 @@ body {
     border-radius: 8px;
     overflow: hidden;
     border: 2px solid var(--border);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.image-preview-item:hover {
+    transform: scale(1.05);
+    border-color: var(--primary);
+}
+
+.image-preview-item.main-image {
+    border: 3px solid var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
 }
 
 .image-preview-item img {
@@ -473,11 +485,29 @@ body {
     font-size: 1rem;
     line-height: 1;
     transition: all 0.2s ease;
+    z-index: 10;
 }
 
 .image-preview-item .remove-image:hover {
     background: #ef4444;
     transform: scale(1.1);
+}
+
+.image-preview-item .main-badge {
+    position: absolute;
+    bottom: 0.25rem;
+    left: 0.25rem;
+    background: rgba(99, 102, 241, 0.9);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: none;
+}
+
+.image-preview-item.main-image .main-badge {
+    display: block;
 }
 
 .form-actions {
@@ -600,7 +630,7 @@ body {
     gap: 1rem;
     padding: 1rem;
     background: var(--bg-card);
-    border-radius: 0 0 12px 12px;
+    margin-top: -4px;
 }
 
 .gallery-btn {
@@ -640,7 +670,7 @@ body {
     padding: 1.5rem;
     background: var(--bg-card);
     border-radius: 0 0 12px 12px;
-    margin-top: -4px;
+    margin-top: 0;
 }
 
 .image-info h3 {

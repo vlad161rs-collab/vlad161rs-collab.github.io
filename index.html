@@ -52,6 +52,7 @@
             <form id="projectForm" class="project-form">
                 <div class="form-group">
                     <label for="projectImages">Изображения (можно выбрать несколько)</label>
+                    <small class="form-hint">Кликните на изображение, чтобы сделать его главным (будет показано на карточке)</small>
                     <div class="image-upload">
                         <input type="file" id="projectImages" accept="image/*" multiple required>
                         <div class="images-preview" id="imagesPreview">
@@ -86,12 +87,12 @@
             <div class="image-gallery" id="imageGallery">
                 <!-- Изображения будут добавлены динамически -->
             </div>
-            <div class="image-info" id="imageInfo"></div>
             <div class="gallery-controls">
                 <button class="gallery-btn" id="prevImage">‹</button>
                 <span class="gallery-counter" id="galleryCounter">1 / 1</span>
                 <button class="gallery-btn" id="nextImage">›</button>
             </div>
+            <div class="image-info" id="imageInfo"></div>
         </div>
     </div>
 

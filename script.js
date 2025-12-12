@@ -81,10 +81,14 @@ function createProjectCard(project, index) {
         </button>
     ` : '';
     
-    // Используем первое изображение как превью, или первое из массива
-    const previewImage = Array.isArray(project.images) && project.images.length > 0 
-        ? project.images[0] 
-        : (project.image || (project.images && project.images[0]));
+    // Используем главное изображение или первое из массива
+    const images = Array.isArray(project.images) && project.images.length > 0 
+        ? project.images 
+        : (project.image ? [project.image] : []);
+    
+    // Определяем главное изображение
+    const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
+    const previewImage = images[mainIndex] || images[0] || project.image;
     
     card.innerHTML = `
         <img src="${previewImage}" alt="${project.title}" class="portfolio-item-image">
@@ -116,7 +120,10 @@ function viewProject(index) {
     if (images.length === 0) return;
     
     currentProjectImages = images;
-    currentImageIndex = 0;
+    
+    // Определяем начальный индекс (главное изображение или первое)
+    const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
+    currentImageIndex = mainIndex >= 0 && mainIndex < images.length ? mainIndex : 0;
     
     // Очищаем галерею и добавляем изображения
     imageGallery.innerHTML = '';
@@ -124,7 +131,7 @@ function viewProject(index) {
         const img = document.createElement('img');
         img.src = imgSrc;
         img.alt = `${project.title} - Image ${idx + 1}`;
-        if (idx === 0) img.classList.add('active');
+        if (idx === currentImageIndex) img.classList.add('active');
         imageGallery.appendChild(img);
     });
     
@@ -192,7 +199,9 @@ function editProject(index) {
         : (project.image ? [project.image] : []);
     
     previewImagesData = images;
-    displayImagePreviews(images);
+    const savedMainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
+    mainImageIndex = savedMainIndex;
+    displayImagePreviews(images, savedMainIndex);
     
     projectModal.classList.add('active');
 }
@@ -277,31 +286,63 @@ function login(password) {
 }
 
 // Отображение превью изображений
-function displayImagePreviews(images) {
+function displayImagePreviews(images, currentMainIndex = 0) {
     if (!images || images.length === 0) {
         imagePreview.innerHTML = '<span>Выберите изображения</span>';
         return;
     }
     
+    mainImageIndex = currentMainIndex;
+    
     imagePreview.innerHTML = '';
     images.forEach((imgSrc, index) => {
         const previewItem = document.createElement('div');
-        previewItem.className = 'image-preview-item';
+        previewItem.className = `image-preview-item ${index === mainImageIndex ? 'main-image' : ''}`;
+        previewItem.onclick = (e) => {
+            // Не переключаем, если кликнули на кнопку удаления
+            if (e.target.classList.contains('remove-image')) return;
+            setMainImage(index);
+        };
         previewItem.innerHTML = `
             <img src="${imgSrc}" alt="Preview ${index + 1}">
-            <button type="button" class="remove-image" onclick="removePreviewImage(${index})">×</button>
+            <button type="button" class="remove-image" onclick="event.stopPropagation(); removePreviewImage(${index})">×</button>
+            <span class="main-badge">Главное</span>
         `;
         imagePreview.appendChild(previewItem);
     });
 }
 
+// Установка главного изображения
+function setMainImage(index) {
+    if (index < 0 || index >= previewImagesData.length) return;
+    mainImageIndex = index;
+    
+    // Обновляем визуальное отображение
+    const items = imagePreview.querySelectorAll('.image-preview-item');
+    items.forEach((item, idx) => {
+        if (idx === index) {
+            item.classList.add('main-image');
+        } else {
+            item.classList.remove('main-image');
+        }
+    });
+}
+
 // Хранилище для превью изображений
 let previewImagesData = [];
+let mainImageIndex = 0; // Индекс главного изображения
 
 // Удаление изображения из превью
 window.removePreviewImage = function(index) {
     // Удаляем из массива данных
     previewImagesData.splice(index, 1);
+    
+    // Обновляем индекс главного изображения
+    if (mainImageIndex >= previewImagesData.length) {
+        mainImageIndex = Math.max(0, previewImagesData.length - 1);
+    } else if (mainImageIndex > index) {
+        mainImageIndex--;
+    }
     
     // Удаляем соответствующий файл из input (создаем новый DataTransfer)
     const dt = new DataTransfer();
@@ -316,8 +357,9 @@ window.removePreviewImage = function(index) {
     // Обновляем превью
     if (previewImagesData.length === 0) {
         imagePreview.innerHTML = '<span>Выберите изображения</span>';
+        mainImageIndex = 0;
     } else {
-        displayImagePreviews(previewImagesData);
+        displayImagePreviews(previewImagesData, mainImageIndex);
     }
 }
 
@@ -433,7 +475,8 @@ projectImages.addEventListener('change', (e) => {
     
     Promise.all(readers).then(results => {
         previewImagesData = results;
-        displayImagePreviews(results);
+        mainImageIndex = 0; // По умолчанию первое изображение - главное
+        displayImagePreviews(results, 0);
     });
 });
 
@@ -478,13 +521,17 @@ function saveProject(title, description, link, imagesData) {
     // imagesData может быть массивом или одним изображением (для обратной совместимости)
     const images = Array.isArray(imagesData) ? imagesData : [imagesData];
     
+    // Определяем главное изображение
+    const mainIndex = mainImageIndex >= 0 && mainImageIndex < images.length ? mainImageIndex : 0;
+    
     const project = {
         id: currentEditId !== null ? projects[currentEditId].id : Date.now(),
         title,
         description,
         link: link || null,
         images: images, // Сохраняем массив изображений
-        image: images[0], // Для обратной совместимости сохраняем первое изображение
+        image: images[mainIndex], // Главное изображение для обратной совместимости
+        mainImageIndex: mainIndex, // Сохраняем индекс главного изображения
         date: currentEditId !== null ? projects[currentEditId].date : new Date().toISOString()
     };
     
@@ -507,6 +554,7 @@ function resetForm() {
     currentProjectImages = [];
     currentImageIndex = 0;
     previewImagesData = [];
+    mainImageIndex = 0;
 }
 
 // Глобальные функции для onclick
