@@ -511,7 +511,6 @@ if (projectImages) {
         }
         displayImagePreviews(previewImagesData, mainImageIndex);
     });
-    });
 }
 
 // Кнопка для добавления дополнительных изображений
