@@ -87,12 +87,16 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+    z-index: 1;
 }
 
 .header-actions {
     display: flex;
     gap: 1rem;
     align-items: center;
+    position: relative;
+    z-index: 10;
 }
 
 .header-greeting {
@@ -304,6 +308,9 @@ body {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    position: relative;
+    z-index: 10;
+    pointer-events: auto;
 }
 
 .auth-btn:hover {

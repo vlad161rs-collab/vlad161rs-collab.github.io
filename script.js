@@ -407,15 +407,23 @@ addBtn.addEventListener('click', () => {
 });
 
 // Кнопка авторизации
-authBtn.addEventListener('click', () => {
-    if (isAuthenticated) {
-        if (confirm('Вы уверены, что хотите выйти?')) {
-            logout();
+if (authBtn) {
+    authBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        if (isAuthenticated) {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                logout();
+            }
+        } else {
+            showAuthModal();
         }
-    } else {
-        showAuthModal();
-    }
-});
+    });
+    
+    // Дополнительная проверка - убеждаемся, что кнопка кликабельна
+    authBtn.style.pointerEvents = 'auto';
+    authBtn.style.cursor = 'pointer';
+}
 
 // Обработка формы авторизации
 authForm.addEventListener('submit', (e) => {
