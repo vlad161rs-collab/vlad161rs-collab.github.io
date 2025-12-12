@@ -290,7 +290,7 @@ function displayImagePreviews(images, currentMainIndex = 0) {
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
     
     if (!images || images.length === 0) {
-        imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
+        imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
         imagePreview.classList.remove('has-images');
         if (addMoreBtn) addMoreBtn.style.display = 'none';
         // Восстанавливаем обработчик клика на placeholder
@@ -367,7 +367,7 @@ window.removePreviewImage = function(index) {
     
     // Обновляем превью
     if (previewImagesData.length === 0) {
-        imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
+        imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
         mainImageIndex = 0;
         imagePreview.classList.remove('has-images');
         const addMoreBtn = document.getElementById('addMoreImagesBtn');
@@ -480,7 +480,7 @@ if (projectImages) {
     const files = Array.from(e.target.files);
     if (files.length === 0) {
         if (previewImagesData.length === 0) {
-            imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
+            imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
             imagePreview.classList.remove('has-images');
             const addMoreBtn = document.getElementById('addMoreImagesBtn');
             if (addMoreBtn) addMoreBtn.style.display = 'none';
@@ -527,42 +527,22 @@ if (addMoreImagesBtn) {
 
 // Обработчик клика на placeholder для загрузки изображений
 function setupUploadPlaceholder() {
-    // Удаляем все старые обработчики
-    const oldPlaceholder = document.getElementById('uploadPlaceholder');
-    if (oldPlaceholder && projectImages) {
-        const newPlaceholder = oldPlaceholder.cloneNode(true);
-        oldPlaceholder.parentNode.replaceChild(newPlaceholder, oldPlaceholder);
-        
-        // Добавляем новый обработчик ТОЛЬКО на placeholder
-        newPlaceholder.addEventListener('click', function(e) {
-            e.stopPropagation();
-            e.preventDefault();
-            
-            // Убеждаемся, что input доступен и видим для браузера
-            if (projectImages) {
-                // Временно делаем input доступным для клика
-                const originalStyle = projectImages.style.cssText;
-                projectImages.style.position = 'fixed';
-                projectImages.style.left = '0';
-                projectImages.style.top = '0';
-                projectImages.style.width = '1px';
-                projectImages.style.height = '1px';
-                projectImages.style.opacity = '0';
-                projectImages.style.pointerEvents = 'auto';
-                projectImages.style.zIndex = '9999';
-                
-                try {
-                    projectImages.click();
-                } catch (error) {
-                    console.error('Error opening file dialog:', error);
-                } finally {
-                    // Восстанавливаем стили
-                    setTimeout(() => {
-                        projectImages.style.cssText = originalStyle;
-                    }, 100);
-                }
-            }
-        });
+    const placeholder = document.getElementById('uploadPlaceholder');
+    if (placeholder && projectImages) {
+        // Если это label, он уже связан с input через for="projectImages"
+        // Просто убеждаемся, что он кликабелен
+        if (placeholder.tagName === 'LABEL') {
+            placeholder.setAttribute('for', 'projectImages');
+            placeholder.style.cursor = 'pointer';
+        } else {
+            // Если это span, заменяем на label
+            const label = document.createElement('label');
+            label.id = 'uploadPlaceholder';
+            label.className = 'upload-placeholder';
+            label.setAttribute('for', 'projectImages');
+            label.textContent = placeholder.textContent;
+            placeholder.parentNode.replaceChild(label, placeholder);
+        }
     }
 }
 
@@ -655,7 +635,7 @@ function saveProject(title, description, link, imagesData) {
 
 function resetForm() {
     projectForm.reset();
-    imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
+    imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
     imagePreview.classList.remove('has-images');
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
     if (addMoreBtn) addMoreBtn.style.display = 'none';
