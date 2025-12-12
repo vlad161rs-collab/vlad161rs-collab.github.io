@@ -287,12 +287,24 @@ function login(password) {
 
 // Отображение превью изображений
 function displayImagePreviews(images, currentMainIndex = 0) {
+    const addMoreBtn = document.getElementById('addMoreImagesBtn');
+    
     if (!images || images.length === 0) {
         imagePreview.innerHTML = '<span>Выберите изображения</span>';
+        imagePreview.classList.remove('has-images');
+        projectImages.style.pointerEvents = 'auto';
+        projectImages.style.zIndex = '2';
+        if (addMoreBtn) addMoreBtn.style.display = 'none';
         return;
     }
     
     mainImageIndex = currentMainIndex;
+    
+    // Когда есть изображения, отключаем клик на input в области превью
+    imagePreview.classList.add('has-images');
+    projectImages.style.pointerEvents = 'none';
+    projectImages.style.zIndex = '0';
+    if (addMoreBtn) addMoreBtn.style.display = 'block';
     
     imagePreview.innerHTML = '';
     images.forEach((imgSrc, index) => {
@@ -301,6 +313,7 @@ function displayImagePreviews(images, currentMainIndex = 0) {
         previewItem.onclick = (e) => {
             // Не переключаем, если кликнули на кнопку удаления
             if (e.target.classList.contains('remove-image')) return;
+            e.stopPropagation();
             setMainImage(index);
         };
         previewItem.innerHTML = `
@@ -358,6 +371,11 @@ window.removePreviewImage = function(index) {
     if (previewImagesData.length === 0) {
         imagePreview.innerHTML = '<span>Выберите изображения</span>';
         mainImageIndex = 0;
+        imagePreview.classList.remove('has-images');
+        projectImages.style.pointerEvents = 'auto';
+        projectImages.style.zIndex = '2';
+        const addMoreBtn = document.getElementById('addMoreImagesBtn');
+        if (addMoreBtn) addMoreBtn.style.display = 'none';
     } else {
         displayImagePreviews(previewImagesData, mainImageIndex);
     }
@@ -460,10 +478,19 @@ imageModal.addEventListener('click', (e) => {
 projectImages.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) {
-        imagePreview.innerHTML = '<span>Выберите изображения</span>';
-        previewImagesData = [];
+        if (previewImagesData.length === 0) {
+            imagePreview.innerHTML = '<span>Выберите изображения</span>';
+            imagePreview.style.pointerEvents = 'auto';
+            projectImages.style.pointerEvents = 'auto';
+            const addMoreBtn = document.getElementById('addMoreImagesBtn');
+            if (addMoreBtn) addMoreBtn.style.display = 'none';
+        }
         return;
     }
+    
+    // Если это первая загрузка, заменяем все
+    // Если уже есть изображения, добавляем новые
+    const isFirstLoad = previewImagesData.length === 0;
     
     const readers = files.map(file => {
         return new Promise((resolve) => {
@@ -474,11 +501,24 @@ projectImages.addEventListener('change', (e) => {
     });
     
     Promise.all(readers).then(results => {
-        previewImagesData = results;
-        mainImageIndex = 0; // По умолчанию первое изображение - главное
-        displayImagePreviews(results, 0);
+        if (isFirstLoad) {
+            previewImagesData = results;
+            mainImageIndex = 0;
+        } else {
+            // Добавляем новые изображения к существующим
+            previewImagesData = [...previewImagesData, ...results];
+        }
+        displayImagePreviews(previewImagesData, mainImageIndex);
     });
 });
+
+// Кнопка для добавления дополнительных изображений
+const addMoreImagesBtn = document.getElementById('addMoreImagesBtn');
+if (addMoreImagesBtn) {
+    addMoreImagesBtn.addEventListener('click', () => {
+        projectImages.click();
+    });
+}
 
 // Обработка формы
 projectForm.addEventListener('submit', (e) => {
@@ -550,6 +590,11 @@ function saveProject(title, description, link, imagesData) {
 function resetForm() {
     projectForm.reset();
     imagePreview.innerHTML = '<span>Выберите изображения</span>';
+    imagePreview.classList.remove('has-images');
+    projectImages.style.pointerEvents = 'auto';
+    projectImages.style.zIndex = '2';
+    const addMoreBtn = document.getElementById('addMoreImagesBtn');
+    if (addMoreBtn) addMoreBtn.style.display = 'none';
     currentEditId = null;
     currentProjectImages = [];
     currentImageIndex = 0;
