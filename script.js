@@ -475,7 +475,8 @@ imageModal.addEventListener('click', (e) => {
 });
 
 // Предпросмотр изображений
-projectImages.addEventListener('change', (e) => {
+if (projectImages) {
+    projectImages.addEventListener('change', (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) {
         if (previewImagesData.length === 0) {
@@ -510,7 +511,8 @@ projectImages.addEventListener('change', (e) => {
         }
         displayImagePreviews(previewImagesData, mainImageIndex);
     });
-});
+    });
+}
 
 // Кнопка для добавления дополнительных изображений
 const addMoreImagesBtn = document.getElementById('addMoreImagesBtn');
@@ -528,7 +530,7 @@ if (addMoreImagesBtn) {
 function setupUploadPlaceholder() {
     // Удаляем все старые обработчики
     const oldPlaceholder = document.getElementById('uploadPlaceholder');
-    if (oldPlaceholder) {
+    if (oldPlaceholder && projectImages) {
         const newPlaceholder = oldPlaceholder.cloneNode(true);
         oldPlaceholder.parentNode.replaceChild(newPlaceholder, oldPlaceholder);
         
@@ -536,8 +538,28 @@ function setupUploadPlaceholder() {
         newPlaceholder.addEventListener('click', function(e) {
             e.stopPropagation();
             e.preventDefault();
+            // Убеждаемся, что input доступен
             if (projectImages) {
-                projectImages.click();
+                try {
+                    projectImages.click();
+                } catch (error) {
+                    console.error('Error opening file dialog:', error);
+                    // Альтернативный способ - создаем временный input
+                    const tempInput = document.createElement('input');
+                    tempInput.type = 'file';
+                    tempInput.accept = 'image/*';
+                    tempInput.multiple = true;
+                    tempInput.style.display = 'none';
+                    document.body.appendChild(tempInput);
+                    tempInput.click();
+                    tempInput.addEventListener('change', function(e) {
+                        if (e.target.files.length > 0) {
+                            projectImages.files = e.target.files;
+                            projectImages.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                        document.body.removeChild(tempInput);
+                    });
+                }
             }
         });
     }
