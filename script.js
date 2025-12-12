@@ -288,13 +288,17 @@ function login(password) {
 // Отображение превью изображений
 function displayImagePreviews(images, currentMainIndex = 0) {
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
     
     if (!images || images.length === 0) {
-        imagePreview.innerHTML = '<span>Выберите изображения</span>';
+        imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
         imagePreview.classList.remove('has-images');
-        projectImages.style.pointerEvents = 'auto';
-        projectImages.style.zIndex = '2';
         if (addMoreBtn) addMoreBtn.style.display = 'none';
+        // Восстанавливаем обработчик клика на placeholder
+        const newPlaceholder = document.getElementById('uploadPlaceholder');
+        if (newPlaceholder) {
+            newPlaceholder.onclick = () => projectImages.click();
+        }
         return;
     }
     
@@ -302,8 +306,6 @@ function displayImagePreviews(images, currentMainIndex = 0) {
     
     // Когда есть изображения, отключаем клик на input в области превью
     imagePreview.classList.add('has-images');
-    projectImages.style.pointerEvents = 'none';
-    projectImages.style.zIndex = '0';
     if (addMoreBtn) addMoreBtn.style.display = 'block';
     
     imagePreview.innerHTML = '';
@@ -369,13 +371,16 @@ window.removePreviewImage = function(index) {
     
     // Обновляем превью
     if (previewImagesData.length === 0) {
-        imagePreview.innerHTML = '<span>Выберите изображения</span>';
+        imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
         mainImageIndex = 0;
         imagePreview.classList.remove('has-images');
-        projectImages.style.pointerEvents = 'auto';
-        projectImages.style.zIndex = '2';
         const addMoreBtn = document.getElementById('addMoreImagesBtn');
         if (addMoreBtn) addMoreBtn.style.display = 'none';
+        // Восстанавливаем обработчик клика на placeholder
+        const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        if (uploadPlaceholder) {
+            uploadPlaceholder.onclick = () => projectImages.click();
+        }
     } else {
         displayImagePreviews(previewImagesData, mainImageIndex);
     }
@@ -515,7 +520,17 @@ projectImages.addEventListener('change', (e) => {
 // Кнопка для добавления дополнительных изображений
 const addMoreImagesBtn = document.getElementById('addMoreImagesBtn');
 if (addMoreImagesBtn) {
-    addMoreImagesBtn.addEventListener('click', () => {
+    addMoreImagesBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        projectImages.click();
+    });
+}
+
+// Обработчик клика на placeholder для загрузки изображений
+const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+if (uploadPlaceholder) {
+    uploadPlaceholder.addEventListener('click', (e) => {
+        e.stopPropagation();
         projectImages.click();
     });
 }
@@ -589,12 +604,15 @@ function saveProject(title, description, link, imagesData) {
 
 function resetForm() {
     projectForm.reset();
-    imagePreview.innerHTML = '<span>Выберите изображения</span>';
+    imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
     imagePreview.classList.remove('has-images');
-    projectImages.style.pointerEvents = 'auto';
-    projectImages.style.zIndex = '2';
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
     if (addMoreBtn) addMoreBtn.style.display = 'none';
+    // Восстанавливаем обработчик клика на placeholder
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    if (uploadPlaceholder) {
+        uploadPlaceholder.onclick = () => projectImages.click();
+    }
     currentEditId = null;
     currentProjectImages = [];
     currentImageIndex = 0;
