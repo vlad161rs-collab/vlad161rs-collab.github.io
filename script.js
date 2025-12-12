@@ -537,27 +537,29 @@ function setupUploadPlaceholder() {
         newPlaceholder.addEventListener('click', function(e) {
             e.stopPropagation();
             e.preventDefault();
-            // Убеждаемся, что input доступен
+            
+            // Убеждаемся, что input доступен и видим для браузера
             if (projectImages) {
+                // Временно делаем input доступным для клика
+                const originalStyle = projectImages.style.cssText;
+                projectImages.style.position = 'fixed';
+                projectImages.style.left = '0';
+                projectImages.style.top = '0';
+                projectImages.style.width = '1px';
+                projectImages.style.height = '1px';
+                projectImages.style.opacity = '0';
+                projectImages.style.pointerEvents = 'auto';
+                projectImages.style.zIndex = '9999';
+                
                 try {
                     projectImages.click();
                 } catch (error) {
                     console.error('Error opening file dialog:', error);
-                    // Альтернативный способ - создаем временный input
-                    const tempInput = document.createElement('input');
-                    tempInput.type = 'file';
-                    tempInput.accept = 'image/*';
-                    tempInput.multiple = true;
-                    tempInput.style.display = 'none';
-                    document.body.appendChild(tempInput);
-                    tempInput.click();
-                    tempInput.addEventListener('change', function(e) {
-                        if (e.target.files.length > 0) {
-                            projectImages.files = e.target.files;
-                            projectImages.dispatchEvent(new Event('change', { bubbles: true }));
-                        }
-                        document.body.removeChild(tempInput);
-                    });
+                } finally {
+                    // Восстанавливаем стили
+                    setTimeout(() => {
+                        projectImages.style.cssText = originalStyle;
+                    }, 100);
                 }
             }
         });
