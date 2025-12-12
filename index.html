@@ -54,10 +54,13 @@
                     <label for="projectImages">Изображения (можно выбрать несколько)</label>
                     <small class="form-hint">Кликните на изображение, чтобы сделать его главным (будет показано на карточке)</small>
                     <div class="image-upload">
-                        <input type="file" id="projectImages" accept="image/*" multiple required>
                         <div class="images-preview" id="imagesPreview">
                             <span>Выберите изображения</span>
                         </div>
+                        <input type="file" id="projectImages" accept="image/*" multiple required>
+                        <button type="button" class="add-more-images-btn" id="addMoreImagesBtn" style="display: none;">
+                            + Добавить еще изображения
+                        </button>
                     </div>
                 </div>
                 <div class="form-group">
