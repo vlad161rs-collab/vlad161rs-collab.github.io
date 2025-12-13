@@ -231,9 +231,28 @@ async function saveProjects() {
         
         // Подготавливаем данные для отправки
         const content = JSON.stringify(projects, null, 2);
+        const contentSizeMB = (content.length / 1024 / 1024).toFixed(2);
         const encodedContent = btoa(unescape(encodeURIComponent(content)));
+        const encodedSizeMB = (encodedContent.length / 1024 / 1024).toFixed(2);
         
-        console.log(`Prepared content: ${projects.length} projects, size: ${content.length} bytes`);
+        console.log(`Prepared content: ${projects.length} projects`);
+        console.log(`Content size: ${contentSizeMB} MB (raw), ${encodedSizeMB} MB (base64)`);
+        console.log(`Projects breakdown:`, projects.map(p => ({
+            title: p.title,
+            images: Array.isArray(p.images) ? p.images.length : 1,
+            imageSize: Array.isArray(p.images) 
+                ? (JSON.stringify(p.images).length / 1024).toFixed(2) + ' KB'
+                : (p.image ? (p.image.length / 1024).toFixed(2) + ' KB' : '0 KB')
+        })));
+        
+        // GitHub API ограничение: ~100MB для файла, но на практике лучше <50MB
+        // Base64 увеличивает размер на ~33%, так что проверяем исходный размер
+        if (content.length > 50 * 1024 * 1024) {
+            const errorMsg = `Файл слишком большой (${contentSizeMB} MB). GitHub API ограничивает размер файлов. Попробуйте уменьшить количество или размер изображений.`;
+            console.error(errorMsg);
+            showNotification(errorMsg, 'error');
+            return;
+        }
         
         const body = {
             message: `Update portfolio projects - ${new Date().toISOString()} (${projects.length} projects)`,
@@ -244,6 +263,8 @@ async function saveProjects() {
         if (sha) {
             body.sha = sha;
         }
+        
+        console.log('Sending request to GitHub API...');
         
         // Отправляем обновление
         const response = await fetch(
@@ -259,16 +280,39 @@ async function saveProjects() {
             }
         );
         
+        const responseText = await response.text();
+        console.log('Response status:', response.status);
+        console.log('Response text:', responseText.substring(0, 500));
+        
         if (response.ok) {
-            const responseData = await response.json();
-            console.log('Projects saved to GitHub successfully:', responseData);
-            console.log(`Saved ${projects.length} project(s):`, projects.map(p => p.title));
-            showNotification(`Проекты успешно сохранены на сервере! (${projects.length} проект(ов))`, 'success');
+            try {
+                const responseData = JSON.parse(responseText);
+                console.log('Projects saved to GitHub successfully:', responseData);
+                console.log(`Saved ${projects.length} project(s):`, projects.map(p => p.title));
+                showNotification(`Проекты успешно сохранены на сервере! (${projects.length} проект(ов), ${contentSizeMB} MB)`, 'success');
+            } catch (e) {
+                console.log('Response is not JSON, but status is OK');
+                showNotification(`Проекты сохранены на сервере! (${projects.length} проект(ов))`, 'success');
+            }
         } else {
-            const errorData = await response.json();
-            console.error('Failed to save to GitHub:', errorData);
+            let errorMessage = 'Unknown error';
+            try {
+                const errorData = JSON.parse(responseText);
+                errorMessage = errorData.message || errorData.error || JSON.stringify(errorData);
+                console.error('Failed to save to GitHub:', errorData);
+                
+                // Специальная обработка для ошибок размера
+                if (errorMessage.includes('size') || errorMessage.includes('too large') || response.status === 413) {
+                    errorMessage = `Файл слишком большой (${contentSizeMB} MB). GitHub API не может обработать файлы больше ~50MB. Попробуйте уменьшить количество или размер изображений.`;
+                }
+            } catch (e) {
+                errorMessage = responseText.substring(0, 200) || `HTTP ${response.status}`;
+                console.error('Failed to parse error response:', e);
+            }
+            
             console.error('Response status:', response.status);
-            showNotification(`Ошибка при сохранении на сервер: ${errorData.message || 'Unknown error'}. Данные сохранены локально.`, 'error');
+            console.error('Error message:', errorMessage);
+            showNotification(`Ошибка при сохранении: ${errorMessage}. Данные сохранены локально.`, 'error');
         }
     } catch (error) {
         console.error('Error saving to GitHub:', error);
