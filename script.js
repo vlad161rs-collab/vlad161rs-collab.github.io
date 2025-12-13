@@ -60,31 +60,107 @@ async function loadProjects() {
         const response = await fetch('data/projects.json');
         if (response.ok) {
             const data = await response.json();
-            projects = Array.isArray(data) ? data : [];
-            renderProjects();
+            // Если файл пустой, проверяем localStorage
+            if (Array.isArray(data) && data.length > 0) {
+                projects = data;
+                renderProjects();
+            } else {
+                // Файл пустой, проверяем localStorage
+                const saved = localStorage.getItem('portfolioProjects');
+                if (saved) {
+                    try {
+                        const localProjects = JSON.parse(saved);
+                        if (Array.isArray(localProjects) && localProjects.length > 0) {
+                            projects = localProjects;
+                            renderProjects();
+                            console.log('Found projects in localStorage, will migrate to server on next save');
+                            // Предлагаем миграцию
+                            offerMigration();
+                        } else {
+                            projects = [];
+                            renderProjects();
+                        }
+                    } catch (e) {
+                        projects = [];
+                        renderProjects();
+                    }
+                } else {
+                    projects = [];
+                    renderProjects();
+                }
+            }
         } else {
-            console.warn('Failed to load projects.json, using empty array');
-            projects = [];
-            renderProjects();
+            console.warn('Failed to load projects.json, checking localStorage');
+            loadFromLocalStorage();
         }
     } catch (error) {
         console.error('Error loading projects:', error);
         // Fallback на localStorage если файл не найден
-        const saved = localStorage.getItem('portfolioProjects');
-        if (saved) {
-            try {
-                projects = JSON.parse(saved);
-                renderProjects();
-                // Мигрируем данные из localStorage в файл при следующем сохранении
-                console.log('Migrating from localStorage to file...');
-            } catch (e) {
-                projects = [];
-                renderProjects();
-            }
-        } else {
+        loadFromLocalStorage();
+    }
+}
+
+// Загрузка из localStorage
+function loadFromLocalStorage() {
+    const saved = localStorage.getItem('portfolioProjects');
+    if (saved) {
+        try {
+            projects = JSON.parse(saved);
+            renderProjects();
+            console.log('Loaded projects from localStorage');
+            // Предлагаем миграцию
+            offerMigration();
+        } catch (e) {
             projects = [];
             renderProjects();
         }
+    } else {
+        projects = [];
+        renderProjects();
+    }
+}
+
+// Предложить миграцию данных
+function offerMigration() {
+    const token = getGitHubToken();
+    if (token && projects.length > 0) {
+        // Если токен есть, автоматически мигрируем
+        setTimeout(() => {
+            if (confirm(`Найдено ${projects.length} проект(ов) в локальном хранилище. Сохранить их на сервер сейчас?`)) {
+                migrateToServer();
+            }
+        }, 500);
+    } else if (projects.length > 0) {
+        // Если токена нет, предлагаем настроить
+        setTimeout(() => {
+            if (confirm(`Найдено ${projects.length} проект(ов) в локальном хранилище. Для сохранения на сервер нужен GitHub Token. Настроить сейчас?`)) {
+                showGitHubTokenPrompt();
+            }
+        }, 500);
+    }
+}
+
+// Миграция данных из localStorage на сервер
+async function migrateToServer() {
+    if (projects.length === 0) {
+        showNotification('Нет проектов для миграции', 'info');
+        return;
+    }
+    
+    const token = getGitHubToken();
+    if (!token) {
+        showNotification('Требуется GitHub Token для миграции', 'error');
+        showGitHubTokenPrompt();
+        return;
+    }
+    
+    showNotification('Миграция проектов на сервер...', 'info');
+    try {
+        await saveProjects();
+        showNotification(`Успешно мигрировано ${projects.length} проект(ов) на сервер!`, 'success');
+    } catch (error) {
+        console.error('Migration error:', error);
+        showNotification('Ошибка при миграции. Попробуйте позже.', 'error');
     }
 }
 
@@ -182,8 +258,34 @@ function showGitHubTokenPrompt() {
     if (userToken !== null && userToken.trim()) {
         setGitHubToken(userToken.trim());
         showNotification('Токен сохранен! Теперь проекты будут сохраняться на сервере.', 'success');
-        // Сохраняем проекты снова с новым токеном
-        saveProjects();
+        
+        // Проверяем, есть ли проекты в localStorage для миграции
+        const saved = localStorage.getItem('portfolioProjects');
+        if (saved) {
+            try {
+                const localProjects = JSON.parse(saved);
+                if (Array.isArray(localProjects) && localProjects.length > 0 && projects.length === 0) {
+                    // Загружаем проекты из localStorage
+                    projects = localProjects;
+                    renderProjects();
+                    // Предлагаем миграцию
+                    setTimeout(() => {
+                        if (confirm(`Найдено ${projects.length} проект(ов) в локальном хранилище. Сохранить их на сервер сейчас?`)) {
+                            migrateToServer();
+                        }
+                    }, 500);
+                } else {
+                    // Сохраняем текущие проекты
+                    saveProjects();
+                }
+            } catch (e) {
+                // Просто сохраняем текущие проекты
+                saveProjects();
+            }
+        } else {
+            // Сохраняем текущие проекты
+            saveProjects();
+        }
     }
 }
 
