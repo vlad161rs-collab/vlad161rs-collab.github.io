@@ -617,10 +617,23 @@ if (projectForm) {
         
         console.log('Form submitted, currentEditId:', currentEditId);
         
-        const title = document.getElementById('projectTitle')?.value || '';
-        const description = document.getElementById('projectDescription')?.value || '';
-        const link = document.getElementById('projectLink')?.value || '';
+        const title = document.getElementById('projectTitle')?.value?.trim() || '';
+        const description = document.getElementById('projectDescription')?.value?.trim() || '';
+        const link = document.getElementById('projectLink')?.value?.trim() || '';
         const imageFiles = projectImages ? Array.from(projectImages.files) : [];
+        
+        // Валидация полей
+        if (!title) {
+            alert('Пожалуйста, введите название проекта');
+            document.getElementById('projectTitle')?.focus();
+            return;
+        }
+        
+        if (!description) {
+            alert('Пожалуйста, введите описание проекта');
+            document.getElementById('projectDescription')?.focus();
+            return;
+        }
         
         // Проверка для нового проекта
         if (imageFiles.length === 0 && currentEditId === null) {
@@ -634,6 +647,7 @@ if (projectForm) {
             if (previewImagesData && previewImagesData.length > 0) {
                 console.log('Saving with preview images:', previewImagesData.length);
                 saveProject(title, description, link, previewImagesData);
+                return;
             } else {
                 // Если превью пусто, используем старые изображения из проекта
                 const project = projects[currentEditId];
@@ -642,18 +656,26 @@ if (projectForm) {
                         ? project.images 
                         : (project.image ? [project.image] : []);
                     console.log('Saving with existing images from project:', existingImages.length);
-                    saveProject(title, description, link, existingImages);
+                    if (existingImages.length > 0) {
+                        saveProject(title, description, link, existingImages);
+                        return;
+                    }
                 } else {
                     alert('Проект не найден');
+                    return;
                 }
             }
-        } else if (imageFiles.length > 0) {
+        }
+        
+        // Если выбраны новые изображения
+        if (imageFiles.length > 0) {
             // Читаем все выбранные файлы
             console.log('Reading new image files:', imageFiles.length);
             const readers = imageFiles.map(file => {
-                return new Promise((resolve) => {
+                return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (event) => resolve(event.target.result);
+                    reader.onerror = (error) => reject(error);
                     reader.readAsDataURL(file);
                 });
             });
@@ -665,9 +687,12 @@ if (projectForm) {
                 console.error('Error reading images:', error);
                 alert('Ошибка при чтении изображений');
             });
-        } else {
-            alert('Пожалуйста, выберите хотя бы одно изображение');
+            return;
         }
+        
+        // Если дошли сюда, значит что-то пошло не так
+        alert('Ошибка: не удалось определить изображения для сохранения');
+        console.error('Failed to save: no images found');
     });
 }
 
