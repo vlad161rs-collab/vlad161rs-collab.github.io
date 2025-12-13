@@ -57,13 +57,38 @@ function setGitHubToken(token) {
 // Загрузка проектов из JSON файла
 async function loadProjects() {
     try {
-        const response = await fetch('data/projects.json');
+        const response = await fetch('data/projects.json?t=' + Date.now()); // Добавляем timestamp для избежания кэша
         if (response.ok) {
             const data = await response.json();
+            console.log(`Loaded ${Array.isArray(data) ? data.length : 0} project(s) from server`);
+            
             // Если файл пустой, проверяем localStorage
             if (Array.isArray(data) && data.length > 0) {
                 projects = data;
+                console.log('Projects from server:', projects.map(p => p.title));
                 renderProjects();
+                
+                // Проверяем, есть ли в localStorage больше проектов
+                const saved = localStorage.getItem('portfolioProjects');
+                if (saved) {
+                    try {
+                        const localProjects = JSON.parse(saved);
+                        if (Array.isArray(localProjects) && localProjects.length > data.length) {
+                            console.log(`Found more projects in localStorage (${localProjects.length}) than on server (${data.length}). Merging...`);
+                            // Объединяем проекты (приоритет у серверных, добавляем только новые из localStorage)
+                            const serverIds = new Set(data.map(p => p.id));
+                            const newProjects = localProjects.filter(p => !serverIds.has(p.id));
+                            if (newProjects.length > 0) {
+                                projects = [...data, ...newProjects];
+                                console.log(`Merged ${newProjects.length} new project(s) from localStorage`);
+                                renderProjects();
+                                offerMigration();
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing localStorage:', e);
+                    }
+                }
             } else {
                 // Файл пустой, проверяем localStorage
                 const saved = localStorage.getItem('portfolioProjects');
@@ -72,8 +97,8 @@ async function loadProjects() {
                         const localProjects = JSON.parse(saved);
                         if (Array.isArray(localProjects) && localProjects.length > 0) {
                             projects = localProjects;
+                            console.log(`Loaded ${projects.length} project(s) from localStorage:`, projects.map(p => p.title));
                             renderProjects();
-                            console.log('Found projects in localStorage, will migrate to server on next save');
                             // Предлагаем миграцию
                             offerMigration();
                         } else {
@@ -166,8 +191,12 @@ async function migrateToServer() {
 
 // Сохранение проектов через GitHub API
 async function saveProjects() {
+    // Проверяем, что массив projects содержит все проекты
+    console.log(`Saving ${projects.length} project(s) to server:`, projects.map(p => p.title));
+    
     // Также сохраняем в localStorage как резервную копию
     localStorage.setItem('portfolioProjects', JSON.stringify(projects));
+    console.log('Projects saved to localStorage:', projects.length);
     
     const token = getGitHubToken();
     if (!token) {
@@ -193,14 +222,21 @@ async function saveProjects() {
         if (getFileResponse.ok) {
             const fileData = await getFileResponse.json();
             sha = fileData.sha;
+            console.log('Got file SHA for update');
+        } else if (getFileResponse.status === 404) {
+            console.log('File does not exist yet, will create new');
+        } else {
+            console.warn('Failed to get file info:', getFileResponse.status);
         }
         
         // Подготавливаем данные для отправки
         const content = JSON.stringify(projects, null, 2);
         const encodedContent = btoa(unescape(encodeURIComponent(content)));
         
+        console.log(`Prepared content: ${projects.length} projects, size: ${content.length} bytes`);
+        
         const body = {
-            message: `Update portfolio projects - ${new Date().toISOString()}`,
+            message: `Update portfolio projects - ${new Date().toISOString()} (${projects.length} projects)`,
             content: encodedContent,
             branch: 'main'
         };
@@ -224,12 +260,15 @@ async function saveProjects() {
         );
         
         if (response.ok) {
-            console.log('Projects saved to GitHub successfully');
-            showNotification('Проекты успешно сохранены на сервере!', 'success');
+            const responseData = await response.json();
+            console.log('Projects saved to GitHub successfully:', responseData);
+            console.log(`Saved ${projects.length} project(s):`, projects.map(p => p.title));
+            showNotification(`Проекты успешно сохранены на сервере! (${projects.length} проект(ов))`, 'success');
         } else {
             const errorData = await response.json();
             console.error('Failed to save to GitHub:', errorData);
-            showNotification('Ошибка при сохранении на сервер. Данные сохранены локально.', 'error');
+            console.error('Response status:', response.status);
+            showNotification(`Ошибка при сохранении на сервер: ${errorData.message || 'Unknown error'}. Данные сохранены локально.`, 'error');
         }
     } catch (error) {
         console.error('Error saving to GitHub:', error);
