@@ -194,6 +194,41 @@ async function saveProjects() {
     // Проверяем, что массив projects содержит все проекты
     console.log(`Saving ${projects.length} project(s) to server:`, projects.map(p => p.title));
     
+    // Проверяем, что все проекты имеют необходимые поля
+    const validProjects = projects.filter(p => {
+        const isValid = p && p.title && (p.images || p.image);
+        if (!isValid) {
+            console.warn('Invalid project found:', p);
+        }
+        return isValid;
+    });
+    
+    if (validProjects.length !== projects.length) {
+        console.warn(`Filtered out ${projects.length - validProjects.length} invalid project(s)`);
+        projects = validProjects;
+    }
+    
+    // Также проверяем localStorage - если там больше проектов, объединяем
+    const saved = localStorage.getItem('portfolioProjects');
+    if (saved) {
+        try {
+            const localProjects = JSON.parse(saved);
+            if (Array.isArray(localProjects) && localProjects.length > projects.length) {
+                console.log(`Found more projects in localStorage (${localProjects.length}) than in current array (${projects.length}). Merging...`);
+                const currentIds = new Set(projects.map(p => p.id));
+                const missingProjects = localProjects.filter(p => !currentIds.has(p.id));
+                if (missingProjects.length > 0) {
+                    projects = [...projects, ...missingProjects];
+                    console.log(`Added ${missingProjects.length} missing project(s) from localStorage:`, missingProjects.map(p => p.title));
+                }
+            }
+        } catch (e) {
+            console.error('Error checking localStorage:', e);
+        }
+    }
+    
+    console.log(`Final projects array before save: ${projects.length} project(s):`, projects.map(p => p.title));
+    
     // Также сохраняем в localStorage как резервную копию
     localStorage.setItem('portfolioProjects', JSON.stringify(projects));
     console.log('Projects saved to localStorage:', projects.length);
@@ -289,7 +324,43 @@ async function saveProjects() {
                 const responseData = JSON.parse(responseText);
                 console.log('Projects saved to GitHub successfully:', responseData);
                 console.log(`Saved ${projects.length} project(s):`, projects.map(p => p.title));
-                showNotification(`Проекты успешно сохранены на сервере! (${projects.length} проект(ов), ${contentSizeMB} MB)`, 'success');
+                
+                // Верифицируем сохранение - загружаем файл обратно через несколько секунд
+                setTimeout(async () => {
+                    try {
+                        const verifyResponse = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE_PATH}?ref=main`, {
+                            headers: {
+                                'Accept': 'application/vnd.github.v3+json'
+                            }
+                        });
+                        
+                        if (verifyResponse.ok) {
+                            const verifyData = await verifyResponse.json();
+                            const decodedContent = atob(verifyData.content.replace(/\s/g, ''));
+                            const savedProjects = JSON.parse(decodedContent);
+                            console.log(`Verification: Found ${savedProjects.length} project(s) on server:`, savedProjects.map(p => p.title));
+                            
+                            if (savedProjects.length !== projects.length) {
+                                console.error(`MISMATCH: Expected ${projects.length} projects, but found ${savedProjects.length} on server!`);
+                                showNotification(`Внимание: На сервере сохранено ${savedProjects.length} из ${projects.length} проектов. Попробуйте сохранить снова.`, 'error');
+                                
+                                // Пытаемся сохранить снова
+                                console.log('Retrying save...');
+                                await saveProjects();
+                            } else {
+                                console.log('Verification successful: All projects saved correctly');
+                                showNotification(`Проекты успешно сохранены и проверены на сервере! (${projects.length} проект(ов), ${contentSizeMB} MB)`, 'success');
+                            }
+                        } else {
+                            console.warn('Could not verify save - file may not be accessible yet');
+                            showNotification(`Проекты сохранены на сервере! (${projects.length} проект(ов), ${contentSizeMB} MB)`, 'success');
+                        }
+                    } catch (verifyError) {
+                        console.error('Error verifying save:', verifyError);
+                        showNotification(`Проекты сохранены на сервере! (${projects.length} проект(ов))`, 'success');
+                    }
+                }, 2000); // Проверяем через 2 секунды
+                
             } catch (e) {
                 console.log('Response is not JSON, but status is OK');
                 showNotification(`Проекты сохранены на сервере! (${projects.length} проект(ов))`, 'success');
