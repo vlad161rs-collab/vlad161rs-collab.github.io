@@ -73,10 +73,10 @@ function createProjectCard(project, index) {
     card.style.animationDelay = `${index * 0.1}s`;
     
     const adminActions = isAuthenticated ? `
-        <button class="btn-icon" onclick="editProject(${index})">
+        <button class="btn-icon" onclick="event.stopPropagation(); editProject(${index})">
             ✏️ Редактировать
         </button>
-        <button class="btn-icon delete" onclick="deleteProject(${index})">
+        <button class="btn-icon delete" onclick="event.stopPropagation(); deleteProject(${index})">
             🗑️ Удалить
         </button>
     ` : '';
@@ -96,13 +96,22 @@ function createProjectCard(project, index) {
             <h3 class="portfolio-item-title">${project.title}</h3>
             <p class="portfolio-item-description">${project.description}</p>
             <div class="portfolio-item-actions">
-                <button class="btn-icon" onclick="viewProject(${index})">
+                <button class="btn-icon" onclick="event.stopPropagation(); viewProject(${index})">
                     👁️ View
                 </button>
                 ${adminActions}
             </div>
         </div>
     `;
+    
+    // Добавляем обработчик клика на всю карточку
+    card.addEventListener('click', (e) => {
+        // Не открываем просмотр, если кликнули на кнопки действий
+        if (e.target.closest('.portfolio-item-actions')) {
+            return;
+        }
+        viewProject(index);
+    });
     
     return card;
 }
