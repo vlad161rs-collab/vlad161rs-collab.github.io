@@ -95,11 +95,16 @@ function createProjectCard(project, index) {
         <div class="portfolio-item-content">
             <h3 class="portfolio-item-title">${project.title}</h3>
             <p class="portfolio-item-description">${project.description}</p>
-            ${adminActions ? `<div class="portfolio-item-actions">${adminActions}</div>` : ''}
+            <div class="portfolio-item-actions">
+                <button class="btn-icon" onclick="event.stopPropagation(); viewProject(${index})">
+                    👁️ View
+                </button>
+                ${adminActions}
+            </div>
         </div>
     `;
     
-    // Добавляем обработчик клика на всю карточку
+    // Добавляем обработчик клика на всю карточку для открытия просмотра
     card.addEventListener('click', (e) => {
         // Не открываем просмотр, если кликнули на кнопки действий
         if (e.target.closest('.portfolio-item-actions') || e.target.closest('.btn-icon')) {
