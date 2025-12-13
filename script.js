@@ -601,41 +601,59 @@ projectForm.addEventListener('click', (e) => {
 });
 
 // Обработка формы
-projectForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    
-    const title = document.getElementById('projectTitle').value;
-    const description = document.getElementById('projectDescription').value;
-    const link = document.getElementById('projectLink').value;
-    const imageFiles = Array.from(projectImages.files);
-    
-    if (imageFiles.length === 0 && !currentEditId) {
-        alert('Пожалуйста, выберите хотя бы одно изображение');
-        return;
-    }
-    
-    // Если редактируем и не выбрано новое изображение, используем старые
-    if (currentEditId !== null && imageFiles.length === 0) {
-        const project = projects[currentEditId];
-        const existingImages = Array.isArray(project.images) && project.images.length > 0 
-            ? project.images 
-            : (project.image ? [project.image] : []);
-        saveProject(title, description, link, existingImages);
-    } else {
-        // Читаем все выбранные файлы
-        const readers = imageFiles.map(file => {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (event) => resolve(event.target.result);
-                reader.readAsDataURL(file);
-            });
-        });
+if (projectForm) {
+    projectForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         
-        Promise.all(readers).then(imageDataArray => {
-            saveProject(title, description, link, imageDataArray);
-        });
-    }
-});
+        console.log('Form submitted, currentEditId:', currentEditId);
+        
+        const title = document.getElementById('projectTitle')?.value || '';
+        const description = document.getElementById('projectDescription')?.value || '';
+        const link = document.getElementById('projectLink')?.value || '';
+        const imageFiles = projectImages ? Array.from(projectImages.files) : [];
+        
+        // Проверка для нового проекта
+        if (imageFiles.length === 0 && currentEditId === null) {
+            alert('Пожалуйста, выберите хотя бы одно изображение');
+            return;
+        }
+        
+        // Если редактируем и не выбрано новое изображение, используем старые
+        if (currentEditId !== null && imageFiles.length === 0) {
+            const project = projects[currentEditId];
+            if (project) {
+                const existingImages = Array.isArray(project.images) && project.images.length > 0 
+                    ? project.images 
+                    : (project.image ? [project.image] : []);
+                console.log('Saving with existing images:', existingImages.length);
+                saveProject(title, description, link, existingImages);
+            } else {
+                alert('Проект не найден');
+            }
+        } else if (imageFiles.length > 0) {
+            // Читаем все выбранные файлы
+            console.log('Reading new image files:', imageFiles.length);
+            const readers = imageFiles.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => resolve(event.target.result);
+                    reader.readAsDataURL(file);
+                });
+            });
+            
+            Promise.all(readers).then(imageDataArray => {
+                console.log('Images read, saving project');
+                saveProject(title, description, link, imageDataArray);
+            }).catch(error => {
+                console.error('Error reading images:', error);
+                alert('Ошибка при чтении изображений');
+            });
+        } else {
+            alert('Пожалуйста, выберите хотя бы одно изображение');
+        }
+    });
+}
 
 function saveProject(title, description, link, imagesData) {
     // imagesData может быть массивом или одним изображением (для обратной совместимости)
