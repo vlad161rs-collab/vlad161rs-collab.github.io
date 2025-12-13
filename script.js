@@ -619,17 +619,24 @@ if (projectForm) {
             return;
         }
         
-        // Если редактируем и не выбрано новое изображение, используем старые
+        // Если редактируем и не выбрано новое изображение, используем изображения из превью
         if (currentEditId !== null && imageFiles.length === 0) {
-            const project = projects[currentEditId];
-            if (project) {
-                const existingImages = Array.isArray(project.images) && project.images.length > 0 
-                    ? project.images 
-                    : (project.image ? [project.image] : []);
-                console.log('Saving with existing images:', existingImages.length);
-                saveProject(title, description, link, existingImages);
+            // Используем изображения из previewImagesData (уже загружены в превью)
+            if (previewImagesData && previewImagesData.length > 0) {
+                console.log('Saving with preview images:', previewImagesData.length);
+                saveProject(title, description, link, previewImagesData);
             } else {
-                alert('Проект не найден');
+                // Если превью пусто, используем старые изображения из проекта
+                const project = projects[currentEditId];
+                if (project) {
+                    const existingImages = Array.isArray(project.images) && project.images.length > 0 
+                        ? project.images 
+                        : (project.image ? [project.image] : []);
+                    console.log('Saving with existing images from project:', existingImages.length);
+                    saveProject(title, description, link, existingImages);
+                } else {
+                    alert('Проект не найден');
+                }
             }
         } else if (imageFiles.length > 0) {
             // Читаем все выбранные файлы
@@ -656,8 +663,15 @@ if (projectForm) {
 }
 
 function saveProject(title, description, link, imagesData) {
+    console.log('saveProject called with:', { title, description, link, imagesCount: imagesData?.length, currentEditId });
+    
     // imagesData может быть массивом или одним изображением (для обратной совместимости)
     const images = Array.isArray(imagesData) ? imagesData : [imagesData];
+    
+    if (images.length === 0) {
+        alert('Ошибка: нет изображений для сохранения');
+        return;
+    }
     
     // Определяем главное изображение
     const mainIndex = mainImageIndex >= 0 && mainImageIndex < images.length ? mainImageIndex : 0;
@@ -675,14 +689,22 @@ function saveProject(title, description, link, imagesData) {
     
     if (currentEditId !== null) {
         projects[currentEditId] = project;
+        console.log('Project updated at index:', currentEditId);
     } else {
         projects.push(project);
+        console.log('New project added');
     }
     
     saveProjects();
     renderProjects();
-    projectModal.classList.remove('active');
+    
+    if (projectModal) {
+        projectModal.classList.remove('active');
+    }
+    
     resetForm();
+    
+    console.log('Project saved successfully');
 }
 
 function resetForm() {
