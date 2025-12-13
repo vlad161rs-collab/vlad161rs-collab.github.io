@@ -13,6 +13,7 @@ const emptyState = document.getElementById('emptyState');
 const addBtn = document.getElementById('addBtn');
 const authBtn = document.getElementById('authBtn');
 const authBtnText = document.getElementById('authBtnText');
+const settingsBtn = document.getElementById('settingsBtn');
 const projectModal = document.getElementById('projectModal');
 const imageModal = document.getElementById('imageModal');
 const authModal = document.getElementById('authModal');
@@ -35,18 +36,184 @@ const galleryCounter = document.getElementById('galleryCounter');
 let currentImageIndex = 0;
 let currentProjectImages = [];
 
-// Загрузка проектов из localStorage
-function loadProjects() {
-    const saved = localStorage.getItem('portfolioProjects');
-    if (saved) {
-        projects = JSON.parse(saved);
-        renderProjects();
+// Настройки GitHub API
+const GITHUB_REPO = 'vlad161rs-collab/vlad161rs-collab.github.io';
+const GITHUB_FILE_PATH = 'data/projects.json';
+
+// Получить GitHub Token из localStorage
+function getGitHubToken() {
+    return localStorage.getItem('githubToken');
+}
+
+// Сохранить GitHub Token в localStorage
+function setGitHubToken(token) {
+    if (token) {
+        localStorage.setItem('githubToken', token);
+    } else {
+        localStorage.removeItem('githubToken');
     }
 }
 
-// Сохранение проектов в localStorage
-function saveProjects() {
+// Загрузка проектов из JSON файла
+async function loadProjects() {
+    try {
+        const response = await fetch('data/projects.json');
+        if (response.ok) {
+            const data = await response.json();
+            projects = Array.isArray(data) ? data : [];
+            renderProjects();
+        } else {
+            console.warn('Failed to load projects.json, using empty array');
+            projects = [];
+            renderProjects();
+        }
+    } catch (error) {
+        console.error('Error loading projects:', error);
+        // Fallback на localStorage если файл не найден
+        const saved = localStorage.getItem('portfolioProjects');
+        if (saved) {
+            try {
+                projects = JSON.parse(saved);
+                renderProjects();
+                // Мигрируем данные из localStorage в файл при следующем сохранении
+                console.log('Migrating from localStorage to file...');
+            } catch (e) {
+                projects = [];
+                renderProjects();
+            }
+        } else {
+            projects = [];
+            renderProjects();
+        }
+    }
+}
+
+// Сохранение проектов через GitHub API
+async function saveProjects() {
+    // Также сохраняем в localStorage как резервную копию
     localStorage.setItem('portfolioProjects', JSON.stringify(projects));
+    
+    const token = getGitHubToken();
+    if (!token) {
+        console.warn('GitHub token not set. Projects saved to localStorage only.');
+        // Показываем уведомление пользователю
+        showGitHubTokenPrompt();
+        return;
+    }
+    
+    try {
+        // Сначала получаем текущий SHA файла (нужно для обновления)
+        const getFileResponse = await fetch(
+            `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE_PATH}`,
+            {
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            }
+        );
+        
+        let sha = null;
+        if (getFileResponse.ok) {
+            const fileData = await getFileResponse.json();
+            sha = fileData.sha;
+        }
+        
+        // Подготавливаем данные для отправки
+        const content = JSON.stringify(projects, null, 2);
+        const encodedContent = btoa(unescape(encodeURIComponent(content)));
+        
+        const body = {
+            message: `Update portfolio projects - ${new Date().toISOString()}`,
+            content: encodedContent,
+            branch: 'main'
+        };
+        
+        if (sha) {
+            body.sha = sha;
+        }
+        
+        // Отправляем обновление
+        const response = await fetch(
+            `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE_PATH}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            }
+        );
+        
+        if (response.ok) {
+            console.log('Projects saved to GitHub successfully');
+            showNotification('Проекты успешно сохранены на сервере!', 'success');
+        } else {
+            const errorData = await response.json();
+            console.error('Failed to save to GitHub:', errorData);
+            showNotification('Ошибка при сохранении на сервер. Данные сохранены локально.', 'error');
+        }
+    } catch (error) {
+        console.error('Error saving to GitHub:', error);
+        showNotification('Ошибка при сохранении на сервер. Данные сохранены локально.', 'error');
+    }
+}
+
+// Показать запрос на ввод GitHub Token
+function showGitHubTokenPrompt() {
+    const token = getGitHubToken();
+    const message = token 
+        ? 'Токен GitHub найден. Хотите изменить его?'
+        : 'Для сохранения проектов на сервере нужен GitHub Personal Access Token.';
+    
+    const userToken = prompt(
+        message + '\n\n' +
+        'Инструкция:\n' +
+        '1. Перейдите на https://github.com/settings/tokens\n' +
+        '2. Создайте новый токен (classic)\n' +
+        '3. Дайте права: repo (полный доступ к репозиториям)\n' +
+        '4. Вставьте токен ниже\n\n' +
+        'Токен (оставьте пустым для отмены):',
+        token || ''
+    );
+    
+    if (userToken !== null && userToken.trim()) {
+        setGitHubToken(userToken.trim());
+        showNotification('Токен сохранен! Теперь проекты будут сохраняться на сервере.', 'success');
+        // Сохраняем проекты снова с новым токеном
+        saveProjects();
+    }
+}
+
+// Показать уведомление
+function showNotification(message, type = 'info') {
+    // Создаем элемент уведомления
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3'};
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
 }
 
 // Рендеринг проектов
@@ -256,10 +423,12 @@ function checkAuth() {
 function updateAuthUI() {
     if (isAuthenticated) {
         addBtn.style.display = 'flex';
+        if (settingsBtn) settingsBtn.style.display = 'flex';
         authBtn.classList.add('logged-in');
         authBtnText.textContent = '🔓 Logout';
     } else {
         addBtn.style.display = 'none';
+        if (settingsBtn) settingsBtn.style.display = 'none';
         authBtn.classList.remove('logged-in');
         authBtnText.textContent = '🔐 Login';
     }
@@ -451,6 +620,15 @@ if (authBtn) {
             showAuthModal();
         }
     });
+    
+    // Обработчик кнопки настроек
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            showGitHubTokenPrompt();
+        });
+    }
     
     // Дополнительная проверка - убеждаемся, что кнопка кликабельна
     authBtn.style.pointerEvents = 'auto';
