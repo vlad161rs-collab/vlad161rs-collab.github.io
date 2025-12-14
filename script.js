@@ -2,6 +2,256 @@
 let projects = [];
 let currentEditId = null;
 let isAuthenticated = false;
+let currentLanguage = localStorage.getItem('portfolioLanguage') || 'en'; // 'en' или 'ru'
+
+// Переводы
+const translations = {
+    en: {
+        // Header
+        login: '🔐 Login',
+        logout: '🔓 Logout',
+        addProject: 'Add Project',
+        settings: '⚙️',
+        greeting: "Hi, I'm",
+        greetingSub: "Nice to meet you!",
+        
+        // Empty state
+        emptyTitle: 'Portfolio is empty',
+        emptyText: 'Click "Add Project" button to get started',
+        
+        // Project modal
+        addProjectTitle: 'Add Project',
+        editProjectTitle: 'Edit Project',
+        imagesLabel: 'Images (multiple selection available)',
+        imagesHint: 'Click on an image to set it as main (will be shown on card)',
+        selectImages: 'Select Images',
+        addMoreImages: '+ Add More Images',
+        titleLabel: 'Project Title',
+        titlePlaceholder: 'Enter title',
+        descriptionLabel: 'Description',
+        descriptionPlaceholder: 'Describe your project...',
+        linkLabel: 'Link (optional)',
+        linkPlaceholder: 'https://example.com',
+        cancel: 'Cancel',
+        save: 'Save',
+        
+        // Auth modal
+        authTitle: 'Login',
+        passwordLabel: 'Admin Password',
+        passwordPlaceholder: 'Enter password',
+        passwordHint: 'Enter password to access editing',
+        enter: 'Login',
+        wrongPassword: 'Wrong password. Please try again.',
+        
+        // Project card
+        view: 'View',
+        edit: 'Edit',
+        delete: 'Delete',
+        deleteConfirm: 'Are you sure you want to delete this project?',
+        
+        // Image modal
+        imageOf: 'Image',
+        
+        // Notifications
+        projectSaved: 'Project saved successfully!',
+        projectDeleted: 'Project deleted successfully!',
+        projectsSaved: 'Projects saved to server!',
+        projectsSavedWithCount: 'Projects saved to server! ({count} project(s), {size} MB)',
+        projectsVerified: 'Projects saved and verified on server! ({count} project(s), {size} MB)',
+        saveMismatch: 'Warning: {saved} of {expected} projects saved on server. Please try saving again.',
+        fileTooLarge: 'File too large ({size} MB). GitHub API limits file size. Try reducing the number or size of images.',
+        githubTokenRequired: 'GitHub token required to save projects to server.',
+        enterToken: 'Enter GitHub Personal Access Token',
+        tokenPlaceholder: 'Paste your token here',
+        tokenHint: 'Token will be stored locally in your browser',
+        tokenSaved: 'Token saved successfully!',
+        migrationOffer: 'Found {count} project(s) in local storage. Would you like to migrate them to the server?',
+        migrationSuccess: 'Projects migrated to server successfully!',
+        migrationError: 'Error migrating projects: {error}',
+        
+        // Settings
+        settingsTitle: 'GitHub Settings',
+        tokenLabel: 'GitHub Personal Access Token',
+        tokenDescription: 'Required to save projects to server. Create token at: https://github.com/settings/tokens',
+        saveToken: 'Save Token',
+        removeToken: 'Remove Token',
+        tokenRemoved: 'Token removed successfully'
+    },
+    ru: {
+        // Header
+        login: '🔐 Войти',
+        logout: '🔓 Выйти',
+        addProject: 'Добавить проект',
+        settings: '⚙️',
+        greeting: 'Привет, я',
+        greetingSub: 'Рад познакомиться!',
+        
+        // Empty state
+        emptyTitle: 'Портфолио пусто',
+        emptyText: 'Нажмите кнопку "Добавить проект", чтобы начать',
+        
+        // Project modal
+        addProjectTitle: 'Добавить проект',
+        editProjectTitle: 'Редактировать проект',
+        imagesLabel: 'Изображения (можно выбрать несколько)',
+        imagesHint: 'Кликните на изображение, чтобы сделать его главным (будет показано на карточке)',
+        selectImages: 'Выберите изображения',
+        addMoreImages: '+ Добавить еще изображения',
+        titleLabel: 'Название проекта',
+        titlePlaceholder: 'Введите название',
+        descriptionLabel: 'Описание',
+        descriptionPlaceholder: 'Опишите ваш проект...',
+        linkLabel: 'Ссылка (опционально)',
+        linkPlaceholder: 'https://example.com',
+        cancel: 'Отмена',
+        save: 'Сохранить',
+        
+        // Auth modal
+        authTitle: 'Вход в систему',
+        passwordLabel: 'Пароль администратора',
+        passwordPlaceholder: 'Введите пароль',
+        passwordHint: 'Введите пароль для доступа к редактированию',
+        enter: 'Войти',
+        wrongPassword: 'Неверный пароль. Попробуйте снова.',
+        
+        // Project card
+        view: 'Просмотр',
+        edit: 'Редактировать',
+        delete: 'Удалить',
+        deleteConfirm: 'Вы уверены, что хотите удалить этот проект?',
+        
+        // Image modal
+        imageOf: 'Изображение',
+        
+        // Notifications
+        projectSaved: 'Проект успешно сохранен!',
+        projectDeleted: 'Проект успешно удален!',
+        projectsSaved: 'Проекты сохранены на сервере!',
+        projectsSavedWithCount: 'Проекты сохранены на сервере! ({count} проект(ов), {size} MB)',
+        projectsVerified: 'Проекты успешно сохранены и проверены на сервере! ({count} проект(ов), {size} MB)',
+        saveMismatch: 'Внимание: На сервере сохранено {saved} из {expected} проектов. Попробуйте сохранить снова.',
+        fileTooLarge: 'Файл слишком большой ({size} MB). GitHub API ограничивает размер файлов. Попробуйте уменьшить количество или размер изображений.',
+        githubTokenRequired: 'Требуется GitHub токен для сохранения проектов на сервер.',
+        enterToken: 'Введите GitHub Personal Access Token',
+        tokenPlaceholder: 'Вставьте ваш токен здесь',
+        tokenHint: 'Токен будет сохранен локально в вашем браузере',
+        tokenSaved: 'Токен успешно сохранен!',
+        migrationOffer: 'Найдено {count} проект(ов) в локальном хранилище. Хотите перенести их на сервер?',
+        migrationSuccess: 'Проекты успешно перенесены на сервер!',
+        migrationError: 'Ошибка при переносе проектов: {error}',
+        
+        // Settings
+        settingsTitle: 'Настройки GitHub',
+        tokenLabel: 'GitHub Personal Access Token',
+        tokenDescription: 'Требуется для сохранения проектов на сервер. Создайте токен на: https://github.com/settings/tokens',
+        saveToken: 'Сохранить токен',
+        removeToken: 'Удалить токен',
+        tokenRemoved: 'Токен успешно удален'
+    }
+};
+
+// Получить перевод
+function t(key, params = {}) {
+    let text = translations[currentLanguage][key] || translations.en[key] || key;
+    // Замена параметров {param}
+    Object.keys(params).forEach(param => {
+        text = text.replace(`{${param}}`, params[param]);
+    });
+    return text;
+}
+
+// Переключение языка
+function setLanguage(lang) {
+    if (translations[lang]) {
+        currentLanguage = lang;
+        localStorage.setItem('portfolioLanguage', lang);
+        updateLanguageUI();
+        updateAllTexts();
+    }
+}
+
+// Обновление UI переключения языка
+function updateLanguageUI() {
+    const langBtn = document.getElementById('langBtn');
+    if (langBtn) {
+        langBtn.textContent = currentLanguage === 'en' ? '🇷🇺 RU' : '🇬🇧 EN';
+        langBtn.title = currentLanguage === 'en' ? 'Switch to Russian' : 'Переключить на английский';
+    }
+}
+
+// Обновление всех текстов на странице
+function updateAllTexts() {
+    // Header
+    if (authBtnText) {
+        authBtnText.textContent = isAuthenticated ? t('logout') : t('login');
+    }
+    if (addBtn) {
+        const addBtnText = addBtn.querySelector('span:last-child');
+        if (addBtnText) addBtnText.textContent = t('addProject');
+    }
+    
+    // Greeting
+    const greetingLine = document.querySelector('.greeting-line');
+    const greetingSubline = document.querySelector('.greeting-subline');
+    if (greetingLine) {
+        greetingLine.innerHTML = `${t('greeting')} <span class="name-highlight">Vlad</span>`;
+    }
+    if (greetingSubline) {
+        greetingSubline.innerHTML = `${t('greetingSub')} <span class="emoji-inline">😊</span>`;
+    }
+    
+    // Empty state
+    const emptyStateTitle = document.querySelector('#emptyState h2');
+    const emptyStateText = document.querySelector('#emptyState p');
+    if (emptyStateTitle) emptyStateTitle.textContent = t('emptyTitle');
+    if (emptyStateText) emptyStateText.textContent = t('emptyText');
+    
+    // Project modal
+    if (modalTitle) {
+        modalTitle.textContent = currentEditId ? t('editProjectTitle') : t('addProjectTitle');
+    }
+    const imagesLabel = document.querySelector('label[for="projectImages"]');
+    if (imagesLabel) imagesLabel.textContent = t('imagesLabel');
+    const imagesHint = document.querySelector('.form-hint');
+    if (imagesHint && imagesHint.previousElementSibling === imagesLabel) {
+        imagesHint.textContent = t('imagesHint');
+    }
+    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+    if (uploadPlaceholder) uploadPlaceholder.textContent = t('selectImages');
+    const addMoreBtn = document.getElementById('addMoreImagesBtn');
+    if (addMoreBtn) addMoreBtn.textContent = t('addMoreImages');
+    const titleLabel = document.querySelector('label[for="projectTitle"]');
+    if (titleLabel) titleLabel.textContent = t('titleLabel');
+    const titleInput = document.getElementById('projectTitle');
+    if (titleInput) titleInput.placeholder = t('titlePlaceholder');
+    const descLabel = document.querySelector('label[for="projectDescription"]');
+    if (descLabel) descLabel.textContent = t('descriptionLabel');
+    const descTextarea = document.getElementById('projectDescription');
+    if (descTextarea) descTextarea.placeholder = t('descriptionPlaceholder');
+    const linkLabel = document.querySelector('label[for="projectLink"]');
+    if (linkLabel) linkLabel.textContent = t('linkLabel');
+    const linkInput = document.getElementById('projectLink');
+    if (linkInput) linkInput.placeholder = t('linkPlaceholder');
+    if (cancelBtn) cancelBtn.textContent = t('cancel');
+    const saveBtn = document.querySelector('#projectForm button[type="submit"]');
+    if (saveBtn) saveBtn.textContent = t('save');
+    
+    // Auth modal
+    const authModalTitle = document.getElementById('authModalTitle');
+    if (authModalTitle) authModalTitle.textContent = t('authTitle');
+    const passwordLabel = document.querySelector('label[for="adminPassword"]');
+    if (passwordLabel) passwordLabel.textContent = t('passwordLabel');
+    const passwordInput = document.getElementById('adminPassword');
+    if (passwordInput) passwordInput.placeholder = t('passwordPlaceholder');
+    const passwordHint = document.querySelector('#authForm .form-hint');
+    if (passwordHint) passwordHint.textContent = t('passwordHint');
+    if (cancelAuthBtn) cancelAuthBtn.textContent = t('cancel');
+    const enterBtn = document.querySelector('#authForm button[type="submit"]');
+    if (enterBtn) enterBtn.textContent = t('enter');
+    
+    // Перерисовка карточек проектов для обновления кнопок
+    renderProjects();
+}
 
 // Пароль администратора (можно изменить)
 // Для безопасности в реальном проекте используйте хеширование и серверную проверку
@@ -151,14 +401,14 @@ function offerMigration() {
     if (token && projects.length > 0) {
         // Если токен есть, автоматически мигрируем
         setTimeout(() => {
-            if (confirm(`Найдено ${projects.length} проект(ов) в локальном хранилище. Сохранить их на сервер сейчас?`)) {
+            if (confirm(t('migrationOffer', { count: projects.length }))) {
                 migrateToServer();
             }
         }, 500);
     } else if (projects.length > 0) {
         // Если токена нет, предлагаем настроить
         setTimeout(() => {
-            if (confirm(`Найдено ${projects.length} проект(ов) в локальном хранилище. Для сохранения на сервер нужен GitHub Token. Настроить сейчас?`)) {
+            if (confirm(t('migrationOffer', { count: projects.length }) + '\n\n' + t('githubTokenRequired'))) {
                 showGitHubTokenPrompt();
             }
         }, 500);
@@ -168,24 +418,24 @@ function offerMigration() {
 // Миграция данных из localStorage на сервер
 async function migrateToServer() {
     if (projects.length === 0) {
-        showNotification('Нет проектов для миграции', 'info');
+        showNotification(currentLanguage === 'ru' ? 'Нет проектов для миграции' : 'No projects to migrate', 'info');
         return;
     }
     
     const token = getGitHubToken();
     if (!token) {
-        showNotification('Требуется GitHub Token для миграции', 'error');
+        showNotification(t('githubTokenRequired'), 'error');
         showGitHubTokenPrompt();
         return;
     }
     
-    showNotification('Миграция проектов на сервер...', 'info');
+    showNotification(currentLanguage === 'ru' ? 'Миграция проектов на сервер...' : 'Migrating projects to server...', 'info');
     try {
         await saveProjects();
-        showNotification(`Успешно мигрировано ${projects.length} проект(ов) на сервер!`, 'success');
+        showNotification(t('migrationSuccess', { count: projects.length }), 'success');
     } catch (error) {
         console.error('Migration error:', error);
-        showNotification('Ошибка при миграции. Попробуйте позже.', 'error');
+        showNotification(t('migrationError', { error: error.message }), 'error');
     }
 }
 
@@ -283,7 +533,7 @@ async function saveProjects() {
         // GitHub API ограничение: ~100MB для файла, но на практике лучше <50MB
         // Base64 увеличивает размер на ~33%, так что проверяем исходный размер
         if (content.length > 50 * 1024 * 1024) {
-            const errorMsg = `Файл слишком большой (${contentSizeMB} MB). GitHub API ограничивает размер файлов. Попробуйте уменьшить количество или размер изображений.`;
+            const errorMsg = t('fileTooLarge', { size: contentSizeMB });
             console.error(errorMsg);
             showNotification(errorMsg, 'error');
             return;
@@ -342,28 +592,28 @@ async function saveProjects() {
                             
                             if (savedProjects.length !== projects.length) {
                                 console.error(`MISMATCH: Expected ${projects.length} projects, but found ${savedProjects.length} on server!`);
-                                showNotification(`Внимание: На сервере сохранено ${savedProjects.length} из ${projects.length} проектов. Попробуйте сохранить снова.`, 'error');
+                                showNotification(t('saveMismatch', { saved: savedProjects.length, expected: projects.length }), 'error');
                                 
                                 // Пытаемся сохранить снова
                                 console.log('Retrying save...');
                                 await saveProjects();
                             } else {
                                 console.log('Verification successful: All projects saved correctly');
-                                showNotification(`Проекты успешно сохранены и проверены на сервере! (${projects.length} проект(ов), ${contentSizeMB} MB)`, 'success');
+                                showNotification(t('projectsVerified', { count: projects.length, size: contentSizeMB }), 'success');
                             }
                         } else {
                             console.warn('Could not verify save - file may not be accessible yet');
-                            showNotification(`Проекты сохранены на сервере! (${projects.length} проект(ов), ${contentSizeMB} MB)`, 'success');
+                            showNotification(t('projectsSavedWithCount', { count: projects.length, size: contentSizeMB }), 'success');
                         }
                     } catch (verifyError) {
                         console.error('Error verifying save:', verifyError);
-                        showNotification(`Проекты сохранены на сервере! (${projects.length} проект(ов))`, 'success');
+                        showNotification(t('projectsSavedWithCount', { count: projects.length, size: contentSizeMB }), 'success');
                     }
                 }, 2000); // Проверяем через 2 секунды
                 
             } catch (e) {
                 console.log('Response is not JSON, but status is OK');
-                showNotification(`Проекты сохранены на сервере! (${projects.length} проект(ов))`, 'success');
+                showNotification(t('projectsSavedWithCount', { count: projects.length, size: contentSizeMB }), 'success');
             }
         } else {
             let errorMessage = 'Unknown error';
@@ -374,7 +624,7 @@ async function saveProjects() {
                 
                 // Специальная обработка для ошибок размера
                 if (errorMessage.includes('size') || errorMessage.includes('too large') || response.status === 413) {
-                    errorMessage = `Файл слишком большой (${contentSizeMB} MB). GitHub API не может обработать файлы больше ~50MB. Попробуйте уменьшить количество или размер изображений.`;
+                    errorMessage = t('fileTooLarge', { size: contentSizeMB });
                 }
             } catch (e) {
                 errorMessage = responseText.substring(0, 200) || `HTTP ${response.status}`;
@@ -383,11 +633,11 @@ async function saveProjects() {
             
             console.error('Response status:', response.status);
             console.error('Error message:', errorMessage);
-            showNotification(`Ошибка при сохранении: ${errorMessage}. Данные сохранены локально.`, 'error');
+            showNotification((currentLanguage === 'ru' ? 'Ошибка при сохранении: ' : 'Error saving: ') + errorMessage + (currentLanguage === 'ru' ? '. Данные сохранены локально.' : '. Data saved locally.'), 'error');
         }
     } catch (error) {
         console.error('Error saving to GitHub:', error);
-        showNotification('Ошибка при сохранении на сервер. Данные сохранены локально.', 'error');
+        showNotification(currentLanguage === 'ru' ? 'Ошибка при сохранении на сервер. Данные сохранены локально.' : 'Error saving to server. Data saved locally.', 'error');
     }
 }
 
@@ -395,23 +645,21 @@ async function saveProjects() {
 function showGitHubTokenPrompt() {
     const token = getGitHubToken();
     const message = token 
-        ? 'Токен GitHub найден. Хотите изменить его?'
-        : 'Для сохранения проектов на сервере нужен GitHub Personal Access Token.';
+        ? (currentLanguage === 'ru' ? 'Токен GitHub найден. Хотите изменить его?' : 'GitHub token found. Do you want to change it?')
+        : t('githubTokenRequired');
+    
+    const instructions = currentLanguage === 'ru' 
+        ? 'Инструкция:\n1. Перейдите на https://github.com/settings/tokens\n2. Создайте новый токен (classic)\n3. Дайте права: repo (полный доступ к репозиториям)\n4. Вставьте токен ниже'
+        : 'Instructions:\n1. Go to https://github.com/settings/tokens\n2. Create a new token (classic)\n3. Give permissions: repo (full access to repositories)\n4. Paste the token below';
     
     const userToken = prompt(
-        message + '\n\n' +
-        'Инструкция:\n' +
-        '1. Перейдите на https://github.com/settings/tokens\n' +
-        '2. Создайте новый токен (classic)\n' +
-        '3. Дайте права: repo (полный доступ к репозиториям)\n' +
-        '4. Вставьте токен ниже\n\n' +
-        'Токен (оставьте пустым для отмены):',
+        message + '\n\n' + instructions + '\n\n' + (currentLanguage === 'ru' ? 'Токен (оставьте пустым для отмены):' : 'Token (leave empty to cancel):'),
         token || ''
     );
     
     if (userToken !== null && userToken.trim()) {
         setGitHubToken(userToken.trim());
-        showNotification('Токен сохранен! Теперь проекты будут сохраняться на сервере.', 'success');
+        showNotification(t('tokenSaved'), 'success');
         
         // Проверяем, есть ли проекты в localStorage для миграции
         const saved = localStorage.getItem('portfolioProjects');
@@ -424,7 +672,7 @@ function showGitHubTokenPrompt() {
                     renderProjects();
                     // Предлагаем миграцию
                     setTimeout(() => {
-                        if (confirm(`Найдено ${projects.length} проект(ов) в локальном хранилище. Сохранить их на сервер сейчас?`)) {
+                        if (confirm(t('migrationOffer', { count: projects.length }))) {
                             migrateToServer();
                         }
                     }, 500);
@@ -497,10 +745,10 @@ function createProjectCard(project, index) {
     
     const adminActions = isAuthenticated ? `
         <button class="btn-icon" onclick="event.stopPropagation(); editProject(${index})">
-            ✏️ Редактировать
+            ✏️ ${t('edit')}
         </button>
         <button class="btn-icon delete" onclick="event.stopPropagation(); deleteProject(${index})">
-            🗑️ Удалить
+            🗑️ ${t('delete')}
         </button>
     ` : '';
     
@@ -520,7 +768,7 @@ function createProjectCard(project, index) {
             <p class="portfolio-item-description">${project.description}</p>
             <div class="portfolio-item-actions">
                 <button class="btn-icon" onclick="event.stopPropagation(); viewProject(${index})">
-                    👁️ View
+                    👁️ ${t('view')}
                 </button>
                 ${adminActions}
             </div>
@@ -645,10 +893,11 @@ function deleteProject(index) {
         return;
     }
     
-    if (confirm('Вы уверены, что хотите удалить этот проект?')) {
+    if (confirm(t('deleteConfirm'))) {
         projects.splice(index, 1);
         saveProjects();
         renderProjects();
+        showNotification(t('projectDeleted'), 'success');
     }
 }
 
@@ -732,7 +981,7 @@ function login(password) {
         authStatus.style.display = 'none';
         return true;
     } else {
-        authStatus.textContent = 'Неверный пароль';
+        authStatus.textContent = t('wrongPassword');
         authStatus.className = 'auth-status error';
         authStatus.style.display = 'block';
         return false;
@@ -744,7 +993,7 @@ function displayImagePreviews(images, currentMainIndex = 0) {
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
     
     if (!images || images.length === 0) {
-        imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
+        imagePreview.innerHTML = `<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">${t('selectImages')}</label>`;
         imagePreview.classList.remove('has-images');
         if (addMoreBtn) addMoreBtn.style.display = 'none';
         // Восстанавливаем обработчик клика на placeholder
@@ -771,7 +1020,7 @@ function displayImagePreviews(images, currentMainIndex = 0) {
         previewItem.innerHTML = `
             <img src="${imgSrc}" alt="Preview ${index + 1}">
             <button type="button" class="remove-image" onclick="event.stopPropagation(); removePreviewImage(${index})">×</button>
-            <span class="main-badge">Главное</span>
+            <span class="main-badge">${currentLanguage === 'ru' ? 'Главное' : 'Main'}</span>
         `;
         imagePreview.appendChild(previewItem);
     });
@@ -852,9 +1101,9 @@ addBtn.addEventListener('click', () => {
     }
     
     currentEditId = null;
-    modalTitle.textContent = 'Добавить проект';
+    modalTitle.textContent = t('addProjectTitle');
     projectForm.reset();
-    imagePreview.innerHTML = '<span class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</span>';
+    imagePreview.innerHTML = `<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">${t('selectImages')}</label>`;
     imagePreview.classList.remove('has-images');
     setupUploadPlaceholder();
     projectModal.classList.add('active');
@@ -868,7 +1117,7 @@ if (authBtn) {
         console.log('Auth button clicked, isAuthenticated:', isAuthenticated);
         
         if (isAuthenticated) {
-            if (confirm('Вы уверены, что хотите выйти?')) {
+            if (confirm(currentLanguage === 'ru' ? 'Вы уверены, что хотите выйти?' : 'Are you sure you want to logout?')) {
                 logout();
             }
         } else {
@@ -1058,20 +1307,20 @@ if (projectForm) {
         
         // Валидация полей
         if (!title) {
-            alert('Пожалуйста, введите название проекта');
+            alert(t('titleLabel') + ' ' + (currentLanguage === 'ru' ? 'обязательно для заполнения' : 'is required'));
             document.getElementById('projectTitle')?.focus();
             return;
         }
         
         if (!description) {
-            alert('Пожалуйста, введите описание проекта');
+            alert(t('descriptionLabel') + ' ' + (currentLanguage === 'ru' ? 'обязательно для заполнения' : 'is required'));
             document.getElementById('projectDescription')?.focus();
             return;
         }
         
         // Проверка для нового проекта
         if (imageFiles.length === 0 && currentEditId === null) {
-            alert('Пожалуйста, выберите хотя бы одно изображение');
+            alert(currentLanguage === 'ru' ? 'Пожалуйста, выберите хотя бы одно изображение' : 'Please select at least one image');
             return;
         }
         
@@ -1095,7 +1344,7 @@ if (projectForm) {
                         return;
                     }
                 } else {
-                    alert('Проект не найден');
+                    alert(currentLanguage === 'ru' ? 'Проект не найден' : 'Project not found');
                     return;
                 }
             }
@@ -1119,13 +1368,13 @@ if (projectForm) {
                 saveProject(title, description, link, imageDataArray);
             }).catch(error => {
                 console.error('Error reading images:', error);
-                alert('Ошибка при чтении изображений');
+                alert(currentLanguage === 'ru' ? 'Ошибка при чтении изображений' : 'Error reading images');
             });
             return;
         }
         
         // Если дошли сюда, значит что-то пошло не так
-        alert('Ошибка: не удалось определить изображения для сохранения');
+        alert(currentLanguage === 'ru' ? 'Ошибка: не удалось определить изображения для сохранения' : 'Error: Could not determine images to save');
         console.error('Failed to save: no images found');
     });
 }
@@ -1137,7 +1386,7 @@ function saveProject(title, description, link, imagesData) {
     const images = Array.isArray(imagesData) ? imagesData : [imagesData];
     
     if (images.length === 0) {
-        alert('Ошибка: нет изображений для сохранения');
+        alert(currentLanguage === 'ru' ? 'Ошибка: нет изображений для сохранения' : 'Error: No images to save');
         return;
     }
     
@@ -1177,7 +1426,7 @@ function saveProject(title, description, link, imagesData) {
 
 function resetForm() {
     projectForm.reset();
-    imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
+    imagePreview.innerHTML = `<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">${t('selectImages')}</label>`;
     imagePreview.classList.remove('has-images');
     const addMoreBtn = document.getElementById('addMoreImagesBtn');
     if (addMoreBtn) addMoreBtn.style.display = 'none';
@@ -1195,7 +1444,20 @@ window.viewProject = viewProject;
 window.editProject = editProject;
 window.deleteProject = deleteProject;
 
+// Обработчик кнопки переключения языка
+const langBtn = document.getElementById('langBtn');
+if (langBtn) {
+    langBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const newLang = currentLanguage === 'en' ? 'ru' : 'en';
+        setLanguage(newLang);
+    });
+}
+
 // Инициализация
+updateLanguageUI(); // Обновляем UI кнопки языка
+updateAllTexts(); // Обновляем все тексты при загрузке
 checkAuth();
 loadProjects();
 
