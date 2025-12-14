@@ -164,25 +164,49 @@ function t(key, params = {}) {
 function getProjectText(project, field) {
     // Если проект имеет структуру с переводами
     if (project[field] && typeof project[field] === 'object' && project[field][currentLanguage]) {
-        return project[field][currentLanguage];
+        let text = project[field][currentLanguage];
+        // Проверяем, не является ли текст ошибкой API
+        if (text && (text.includes('QUERY LENGTH LIMIT') || text.includes('MAX ALLOWED QUERY'))) {
+            // Если это ошибка, пытаемся получить исходный текст на другом языке
+            const otherLang = currentLanguage === 'ru' ? 'en' : 'ru';
+            if (project[field][otherLang] && !project[field][otherLang].includes('QUERY LENGTH LIMIT')) {
+                return project[field][otherLang];
+            }
+            // Если оба языка содержат ошибку, возвращаем пустую строку
+            return '';
+        }
+        return text;
     }
     // Если есть переводы в старом формате (title_en, title_ru)
     if (project[`${field}_${currentLanguage}`]) {
-        return project[`${field}_${currentLanguage}`];
+        const text = project[`${field}_${currentLanguage}`];
+        if (text && (text.includes('QUERY LENGTH LIMIT') || text.includes('MAX ALLOWED QUERY'))) {
+            return '';
+        }
+        return text;
     }
     // Если есть переводы в новом формате (translations)
     if (project.translations && project.translations[field] && project.translations[field][currentLanguage]) {
-        return project.translations[field][currentLanguage];
+        const text = project.translations[field][currentLanguage];
+        if (text && (text.includes('QUERY LENGTH LIMIT') || text.includes('MAX ALLOWED QUERY'))) {
+            return '';
+        }
+        return text;
     }
     // Если это старый формат (просто строка), возвращаем исходный текст
     // Но помечаем проект для миграции
     if (project[field] && typeof project[field] === 'string') {
+        const text = project[field];
+        // Проверяем, не является ли текст ошибкой API
+        if (text && (text.includes('QUERY LENGTH LIMIT') || text.includes('MAX ALLOWED QUERY'))) {
+            return ''; // Возвращаем пустую строку вместо ошибки
+        }
         // Помечаем проект для миграции (асинхронно)
         if (!project._migrationQueued) {
             project._migrationQueued = true;
             migrateProjectAsync(project);
         }
-        return project[field];
+        return text;
     }
     return '';
 }
