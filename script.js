@@ -253,134 +253,115 @@ async function migrateOldProjects() {
 }
 
 // Автоматический перевод текста через API
+// СТРОГИЙ КОНТРОЛЬ ДЛИНЫ URL: лимит API = 500 символов для всего URL
 async function translateText(text, targetLang) {
     if (!text || text.trim() === '') return '';
     
     // Определяем исходный язык
     const sourceLang = targetLang === 'ru' ? 'en' : 'ru';
     
-    // Безопасная длина с учетом URL-кодирования (encodeURIComponent может увеличить длину до 3x)
-    // Лимит API: 500 символов, но нужно учитывать длину URL и параметры
-    const maxSafeLength = 200; // Консервативный лимит для безопасности
+    // Базовый URL: "https://api.mymemory.translated.net/get?q=" = 43 символа
+    // + "&langpair=en|ru" = 15 символов
+    // Итого: 58 символов базового URL
+    // Остается: 500 - 58 = 442 символа для закодированного текста
+    // encodeURIComponent может увеличить длину в 3 раза для спецсимволов
+    // Безопасный лимит: 442 / 3 = ~147, но берем 100 для гарантии
+    const BASE_URL_LENGTH = 58;
+    const MAX_URL_LENGTH = 500;
+    const MAX_ENCODED_TEXT_LENGTH = MAX_URL_LENGTH - BASE_URL_LENGTH; // 442
+    const MAX_TEXT_LENGTH = 100; // Консервативный лимит для исходного текста
     
     try {
-        // Если текст короткий, переводим целиком
-        if (text.length <= maxSafeLength) {
-            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`;
-            if (url.length > 500) {
-                // Даже после кодирования URL слишком длинный - разбиваем
-                return await translateLongText(text, sourceLang, targetLang, maxSafeLength);
-            }
-            
-            const response = await fetch(url);
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.responseData && data.responseData.translatedText) {
-                    return data.responseData.translatedText;
-                }
-            }
-        } else {
-            // Для длинных текстов разбиваем на части
-            return await translateLongText(text, sourceLang, targetLang, maxSafeLength);
-        }
+        // Всегда разбиваем текст на части для гарантии
+        return await translateLongText(text, sourceLang, targetLang, MAX_TEXT_LENGTH, MAX_ENCODED_TEXT_LENGTH);
     } catch (error) {
         console.error('Translation error:', error);
+        return text;
     }
-    
-    // Если перевод не удался, возвращаем исходный текст
-    return text;
 }
 
-// Перевод длинного текста по частям
-async function translateLongText(text, sourceLang, targetLang, maxLength) {
-    console.log(`Translating long text (${text.length} chars), splitting into parts...`);
+// Перевод длинного текста по частям с строгим контролем длины
+async function translateLongText(text, sourceLang, targetLang, maxTextLength, maxEncodedLength) {
+    if (!text || text.trim() === '') return '';
     
-    // Разбиваем на предложения
-    const sentences = text.split(/([.!?]\s+)/).filter(s => s.trim().length > 0);
+    console.log(`Translating text (${text.length} chars), splitting into safe chunks...`);
+    
+    // Разбиваем на слова для точного контроля
+    const words = text.split(/(\s+)/);
     const translatedParts = [];
-    
     let currentChunk = '';
     
-    for (let i = 0; i < sentences.length; i++) {
-        const sentence = sentences[i];
-        const testChunk = currentChunk ? currentChunk + sentence : sentence;
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        const testChunk = currentChunk ? currentChunk + word : word;
         
-        // Проверяем длину с учетом URL-кодирования
-        const encodedLength = encodeURIComponent(testChunk).length;
-        
-        if (encodedLength <= maxLength && testChunk.length <= maxLength) {
-            currentChunk = testChunk;
-        } else {
+        // Проверяем длину исходного текста
+        if (testChunk.length > maxTextLength) {
             // Переводим накопленный chunk
             if (currentChunk.trim()) {
-                const translated = await translateTextChunk(currentChunk.trim(), sourceLang, targetLang);
+                const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
                 translatedParts.push(translated);
             }
-            
-            // Начинаем новый chunk
-            if (sentence.length <= maxLength) {
-                currentChunk = sentence;
-            } else {
-                // Даже одно предложение слишком длинное - разбиваем по словам
-                const words = sentence.split(/(\s+)/);
-                let wordChunk = '';
-                
-                for (const word of words) {
-                    const testWordChunk = wordChunk ? wordChunk + word : word;
-                    const encodedWordLength = encodeURIComponent(testWordChunk).length;
-                    
-                    if (encodedWordLength <= maxLength && testWordChunk.length <= maxLength) {
-                        wordChunk = testWordChunk;
-                    } else {
-                        if (wordChunk.trim()) {
-                            const translated = await translateTextChunk(wordChunk.trim(), sourceLang, targetLang);
-                            translatedParts.push(translated);
-                        }
-                        wordChunk = word;
-                    }
-                }
-                
-                if (wordChunk.trim()) {
-                    const translated = await translateTextChunk(wordChunk.trim(), sourceLang, targetLang);
+            currentChunk = word;
+        } else {
+            // Проверяем длину закодированного текста
+            const encoded = encodeURIComponent(testChunk);
+            if (encoded.length > maxEncodedLength) {
+                // Переводим накопленный chunk
+                if (currentChunk.trim()) {
+                    const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
                     translatedParts.push(translated);
                 }
-                currentChunk = '';
+                currentChunk = word;
+            } else {
+                currentChunk = testChunk;
             }
         }
     }
     
     // Переводим последний chunk
     if (currentChunk.trim()) {
-        const translated = await translateTextChunk(currentChunk.trim(), sourceLang, targetLang);
+        const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
         translatedParts.push(translated);
     }
     
     return translatedParts.join(' ');
 }
 
-// Вспомогательная функция для перевода части текста с проверкой длины URL
-async function translateTextChunk(chunk, sourceLang, targetLang) {
+// Безопасный перевод части текста с гарантией длины URL < 500
+async function translateTextChunkSafe(chunk, sourceLang, targetLang, maxEncodedLength) {
     if (!chunk || chunk.trim() === '') return '';
     
-    try {
-        // Дополнительная проверка длины URL перед запросом
-        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${sourceLang}|${targetLang}`;
+    // СТРОГАЯ ПРОВЕРКА: проверяем длину URL перед каждым запросом
+    const encodedText = encodeURIComponent(chunk);
+    const fullUrl = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${sourceLang}|${targetLang}`;
+    
+    // Если URL все еще слишком длинный, разбиваем рекурсивно
+    if (fullUrl.length > 500 || encodedText.length > maxEncodedLength) {
+        console.warn(`URL too long (${fullUrl.length} chars), splitting chunk: "${chunk.substring(0, 30)}..."`);
         
-        if (url.length > 500) {
-            console.warn(`URL too long (${url.length} chars), chunk: ${chunk.substring(0, 50)}...`);
-            // Если URL все еще слишком длинный, разбиваем еще больше
-            const midPoint = Math.floor(chunk.length / 2);
-            const part1 = chunk.substring(0, midPoint);
-            const part2 = chunk.substring(midPoint);
+        // Разбиваем пополам
+        const midPoint = Math.floor(chunk.length / 2);
+        const part1 = chunk.substring(0, midPoint).trim();
+        const part2 = chunk.substring(midPoint).trim();
+        
+        if (part1 && part2) {
             const [translated1, translated2] = await Promise.all([
-                translateTextChunk(part1, sourceLang, targetLang),
-                translateTextChunk(part2, sourceLang, targetLang)
+                translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength),
+                translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength)
             ]);
-            return translated1 + ' ' + translated2;
+            return (translated1 + ' ' + translated2).trim();
+        } else if (part1) {
+            return await translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength);
+        } else if (part2) {
+            return await translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength);
         }
-        
-        const response = await fetch(url);
+        return chunk;
+    }
+    
+    // URL безопасной длины - выполняем запрос
+    try {
+        const response = await fetch(fullUrl);
         
         if (response.ok) {
             const data = await response.json();
@@ -389,7 +370,22 @@ async function translateTextChunk(chunk, sourceLang, targetLang) {
             }
         } else {
             const errorText = await response.text();
-            console.error('Translation API error:', response.status, errorText);
+            if (errorText.includes('QUERY LENGTH LIMIT')) {
+                console.error('API still reports length limit, splitting further...');
+                // Еще больше разбиваем
+                const midPoint = Math.floor(chunk.length / 2);
+                const part1 = chunk.substring(0, midPoint).trim();
+                const part2 = chunk.substring(midPoint).trim();
+                if (part1 && part2) {
+                    const [translated1, translated2] = await Promise.all([
+                        translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength),
+                        translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength)
+                    ]);
+                    return (translated1 + ' ' + translated2).trim();
+                }
+            } else {
+                console.error('Translation API error:', response.status, errorText.substring(0, 100));
+            }
         }
     } catch (error) {
         console.error('Translation chunk error:', error);
