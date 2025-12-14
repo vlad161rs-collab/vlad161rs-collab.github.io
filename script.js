@@ -330,6 +330,10 @@ async function migrateOldProjects() {
 }
 
 // Автоматический перевод текста через API с несколькими fallback методами
+// Глобальная переменная для отслеживания доступности API
+let myMemoryAvailable = true;
+let lastMyMemoryError = null;
+
 async function translateText(text, targetLang) {
     if (!text || text.trim() === '') return '';
     
@@ -339,38 +343,73 @@ async function translateText(text, targetLang) {
     // Пробуем несколько методов перевода с fallback
     let result = null;
     
-    // Метод 1: MyMemory API (основной)
-    try {
-        result = await translateWithMyMemory(text, sourceLang, targetLang);
-        if (result && result !== text && !result.includes('QUERY LENGTH LIMIT') && !result.includes('MAX ALLOWED QUERY')) {
-            return result;
-        }
-    } catch (error) {
-        console.warn('MyMemory translation failed, trying alternative...', error);
-    }
-    
-    // Метод 2: LibreTranslate API (альтернативный бесплатный API)
+    // Метод 1: LibreTranslate API (приоритет - бесплатный, без лимитов)
     try {
         result = await translateWithLibreTranslate(text, sourceLang, targetLang);
-        if (result && result !== text) {
+        if (result && result !== text && result.trim() !== '') {
+            console.log('✓ Translation via LibreTranslate');
             return result;
         }
     } catch (error) {
         console.warn('LibreTranslate translation failed, trying alternative...', error);
     }
     
-    // Метод 3: Google Translate через прокси (если доступен)
+    // Метод 2: MyMemory API (если ранее не было ошибки 429)
+    if (myMemoryAvailable) {
+        try {
+            result = await translateWithMyMemory(text, sourceLang, targetLang);
+            if (result && result !== text && !result.includes('QUERY LENGTH LIMIT') && !result.includes('MAX ALLOWED QUERY') && !result.includes('MYMEMORY WARNING')) {
+                console.log('✓ Translation via MyMemory');
+                lastMyMemoryError = null;
+                return result;
+            }
+            // Если получили ошибку, помечаем как недоступный
+            if (result && (result.includes('QUERY LENGTH LIMIT') || result.includes('MYMEMORY WARNING'))) {
+                myMemoryAvailable = false;
+                lastMyMemoryError = Date.now();
+                console.warn('MyMemory API unavailable, will skip for 1 hour');
+            }
+        } catch (error) {
+            console.warn('MyMemory translation failed, trying alternative...', error);
+            // Если ошибка 429, помечаем как недоступный на час
+            if (error.message && error.message.includes('429')) {
+                myMemoryAvailable = false;
+                lastMyMemoryError = Date.now();
+            }
+        }
+    } else {
+        // Проверяем, прошёл ли час с последней ошибки
+        if (lastMyMemoryError && Date.now() - lastMyMemoryError > 3600000) {
+            myMemoryAvailable = true;
+            lastMyMemoryError = null;
+            console.log('Retrying MyMemory API after cooldown...');
+        }
+    }
+    
+    // Метод 3: Альтернативный LibreTranslate endpoint
     try {
-        result = await translateWithGoogleProxy(text, sourceLang, targetLang);
-        if (result && result !== text) {
+        result = await translateWithLibreTranslateAlt(text, sourceLang, targetLang);
+        if (result && result !== text && result.trim() !== '') {
+            console.log('✓ Translation via LibreTranslate (alternative)');
             return result;
         }
     } catch (error) {
-        console.warn('Google Translate proxy failed, using fallback...', error);
+        console.warn('LibreTranslate alternative failed...', error);
+    }
+    
+    // Метод 4: Google Translate через прокси (если доступен)
+    try {
+        result = await translateWithGoogleProxy(text, sourceLang, targetLang);
+        if (result && result !== text && result.trim() !== '') {
+            console.log('✓ Translation via Google Translate');
+            return result;
+        }
+    } catch (error) {
+        console.warn('Google Translate proxy failed...', error);
     }
     
     // Если все методы не сработали, возвращаем исходный текст
-    console.warn('All translation methods failed, returning original text');
+    console.warn('All translation methods failed, using original text');
     return text;
 }
 
