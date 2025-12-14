@@ -752,7 +752,7 @@ async function migrateAllProjects() {
             const sourceLang = detectLanguage((originalTitle || '') + ' ' + (originalDesc || ''));
             const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
             
-            // Проверяем и переводим title
+            // Проверяем и переводим title на оба языка
             if (originalTitle && originalTitle.trim() !== '') {
                 if (!project.title || typeof project.title !== 'object') {
                     project.title = {};
@@ -768,7 +768,7 @@ async function migrateAllProjects() {
                 if (!project.title[targetLang] || 
                     project.title[targetLang].includes('QUERY LENGTH LIMIT') || 
                     project.title[targetLang].includes('MAX ALLOWED QUERY')) {
-                    console.log(`Translating title for project ${i} (${originalTitle.length} chars): ${originalTitle.substring(0, 50)}...`);
+                    console.log(`Translating title for project ${i} (${originalTitle.length} chars) from ${sourceLang} to ${targetLang}: ${originalTitle.substring(0, 50)}...`);
                     const translatedTitle = await translateText(originalTitle, targetLang);
                     
                     // Проверяем, что перевод не содержит ошибку
@@ -784,7 +784,7 @@ async function migrateAllProjects() {
                 }
             }
             
-            // Проверяем и переводим description
+            // Проверяем и переводим description на оба языка
             if (originalDesc && originalDesc.trim() !== '') {
                 if (!project.description || typeof project.description !== 'object') {
                     project.description = {};
@@ -800,7 +800,7 @@ async function migrateAllProjects() {
                 if (!project.description[targetLang] || 
                     project.description[targetLang].includes('QUERY LENGTH LIMIT') || 
                     project.description[targetLang].includes('MAX ALLOWED QUERY')) {
-                    console.log(`Translating description for project ${i} (${originalDesc.length} chars): ${originalDesc.substring(0, 50)}...`);
+                    console.log(`Translating description for project ${i} (${originalDesc.length} chars) from ${sourceLang} to ${targetLang}: ${originalDesc.substring(0, 50)}...`);
                     const translatedDesc = await translateText(originalDesc, targetLang);
                     
                     // Проверяем, что перевод не содержит ошибку
