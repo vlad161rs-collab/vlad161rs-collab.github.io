@@ -649,12 +649,26 @@ async function translateTextChunkSafe(chunk, sourceLang, targetLang, maxEncodedL
                 if (data.responseData && data.responseData.translatedText) {
                     const translated = data.responseData.translatedText;
                     // Проверяем, что результат не является ошибкой
-                    if (translated && !translated.includes('QUERY LENGTH LIMIT') && !translated.includes('MAX ALLOWED QUERY')) {
+                    if (translated && 
+                        !translated.includes('QUERY LENGTH LIMIT') && 
+                        !translated.includes('MAX ALLOWED QUERY') &&
+                        !translated.includes('MYMEMORY WARNING') &&
+                        !translated.includes('YOU USED ALL AVAILABLE FREE TRANSLATIONS')) {
                         return translated;
+                    } else {
+                        console.warn('Translation API returned error message, using original text');
+                        return chunk; // Возвращаем исходный текст вместо ошибки
                     }
                 }
             } else {
                 const errorText = await response.text();
+                
+                // Обработка ошибки 429 (Too Many Requests)
+                if (response.status === 429) {
+                    console.warn('Translation API rate limit exceeded (429). Using original text. Please try again later.');
+                    return chunk; // Возвращаем исходный текст
+                }
+                
                 if (errorText.includes('QUERY LENGTH LIMIT') || errorText.includes('MAX ALLOWED QUERY')) {
                     console.error('API reports length limit, splitting further...');
                     // Еще больше разбиваем
@@ -676,6 +690,7 @@ async function translateTextChunkSafe(chunk, sourceLang, targetLang, maxEncodedL
                     return chunk;
                 } else {
                     console.error('Translation API error:', response.status, errorText.substring(0, 100));
+                    return chunk; // Возвращаем исходный текст при любой ошибке
                 }
             }
         } catch (error) {
