@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Translation API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-section {
+            background: #2a2a2a;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .test-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #333;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .info {
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Translation API Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Short Text (should work)</h2>
+        <input type="text" class="test-input" id="test1" value="Hello, this is a test.">
+        <button onclick="testTranslation('test1', 'ru')">Translate to Russian</button>
+        <div id="result1" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: Medium Text (should split)</h2>
+        <textarea class="test-input" id="test2" rows="3">This is a medium length text that should be split into multiple parts because it exceeds the safe length limit of 100 characters. The translation API has a limit of 500 characters for the entire URL.</textarea>
+        <button onclick="testTranslation('test2', 'ru')">Translate to Russian</button>
+        <div id="result2" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: Very Long Text (should split many times)</h2>
+        <textarea class="test-input" id="test3" rows="5">This is a very long text that will definitely need to be split into many parts. The translation API has a strict limit of 500 characters for the entire URL including the base URL and parameters. This text is designed to test the recursive splitting functionality. It should handle even extremely long texts by breaking them down into safe chunks. Each chunk will be translated separately and then combined back together. This ensures that no matter how long the text is, it will be translated successfully without hitting the query length limit error.</textarea>
+        <button onclick="testTranslation('test3', 'ru')">Translate to Russian</button>
+        <div id="result3" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Text with Special Characters (URL encoding test)</h2>
+        <textarea class="test-input" id="test4" rows="3">This text contains special characters: !@#$%^&*()_+-=[]{}|;':\",./<>? and also русские символы which should be properly encoded in the URL. The encodeURIComponent function should handle all of these correctly.</textarea>
+        <button onclick="testTranslation('test4', 'ru')">Translate to Russian</button>
+        <div id="result4" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 5: Russian to English</h2>
+        <textarea class="test-input" id="test5" rows="3">Это длинный русский текст, который должен быть переведен на английский язык. Текст содержит много слов и предложений, чтобы проверить работу функции разбиения на части при переводе длинных текстов.</textarea>
+        <button onclick="testTranslation('test5', 'en')">Translate to English</button>
+        <div id="result5" class="result"></div>
+    </div>
+
+    <script>
+        // Копируем функцию перевода из основного скрипта
+        const BASE_URL_LENGTH = 58;
+        const MAX_URL_LENGTH = 500;
+        const MAX_ENCODED_TEXT_LENGTH = MAX_URL_LENGTH - BASE_URL_LENGTH; // 442
+        const MAX_TEXT_LENGTH = 100;
+
+        async function translateText(text, targetLang) {
+            if (!text || text.trim() === '') return '';
+            
+            const sourceLang = targetLang === 'ru' ? 'en' : 'ru';
+            
+            try {
+                return await translateLongText(text, sourceLang, targetLang, MAX_TEXT_LENGTH, MAX_ENCODED_TEXT_LENGTH);
+            } catch (error) {
+                console.error('Translation error:', error);
+                return text;
+            }
+        }
+
+        async function translateLongText(text, sourceLang, targetLang, maxTextLength, maxEncodedLength) {
+            if (!text || text.trim() === '') return '';
+            
+            console.log(`Translating text (${text.length} chars), splitting into safe chunks...`);
+            
+            const words = text.split(/(\s+)/);
+            const translatedParts = [];
+            let currentChunk = '';
+            
+            for (let i = 0; i < words.length; i++) {
+                const word = words[i];
+                const testChunk = currentChunk ? currentChunk + word : word;
+                
+                if (testChunk.length > maxTextLength) {
+                    if (currentChunk.trim()) {
+                        const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
+                        translatedParts.push(translated);
+                    }
+                    currentChunk = word;
+                } else {
+                    const encoded = encodeURIComponent(testChunk);
+                    if (encoded.length > maxEncodedLength) {
+                        if (currentChunk.trim()) {
+                            const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
+                            translatedParts.push(translated);
+                        }
+                        currentChunk = word;
+                    } else {
+                        currentChunk = testChunk;
+                    }
+                }
+            }
+            
+            if (currentChunk.trim()) {
+                const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
+                translatedParts.push(translated);
+            }
+            
+            return translatedParts.join(' ');
+        }
+
+        async function translateTextChunkSafe(chunk, sourceLang, targetLang, maxEncodedLength) {
+            if (!chunk || chunk.trim() === '') return '';
+            
+            const encodedText = encodeURIComponent(chunk);
+            const fullUrl = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${sourceLang}|${targetLang}`;
+            
+            if (fullUrl.length > 500 || encodedText.length > maxEncodedLength) {
+                console.warn(`URL too long (${fullUrl.length} chars), splitting chunk: "${chunk.substring(0, 30)}..."`);
+                
+                const midPoint = Math.floor(chunk.length / 2);
+                const part1 = chunk.substring(0, midPoint).trim();
+                const part2 = chunk.substring(midPoint).trim();
+                
+                if (part1 && part2) {
+                    const [translated1, translated2] = await Promise.all([
+                        translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength),
+                        translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength)
+                    ]);
+                    return (translated1 + ' ' + translated2).trim();
+                } else if (part1) {
+                    return await translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength);
+                } else if (part2) {
+                    return await translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength);
+                }
+                return chunk;
+            }
+            
+            try {
+                const response = await fetch(fullUrl);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.responseData && data.responseData.translatedText) {
+                        return data.responseData.translatedText;
+                    }
+                } else {
+                    const errorText = await response.text();
+                    if (errorText.includes('QUERY LENGTH LIMIT')) {
+                        console.error('API still reports length limit, splitting further...');
+                        const midPoint = Math.floor(chunk.length / 2);
+                        const part1 = chunk.substring(0, midPoint).trim();
+                        const part2 = chunk.substring(midPoint).trim();
+                        if (part1 && part2) {
+                            const [translated1, translated2] = await Promise.all([
+                                translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength),
+                                translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength)
+                            ]);
+                            return (translated1 + ' ' + translated2).trim();
+                        }
+                    } else {
+                        console.error('Translation API error:', response.status, errorText.substring(0, 100));
+                    }
+                }
+            } catch (error) {
+                console.error('Translation chunk error:', error);
+            }
+            
+            return chunk;
+        }
+
+        async function testTranslation(inputId, targetLang) {
+            const input = document.getElementById(inputId);
+            const resultDiv = document.getElementById('result' + inputId.replace('test', ''));
+            const text = input.value;
+            
+            if (!text.trim()) {
+                resultDiv.innerHTML = '<span class="error">Please enter text to translate</span>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<span class="info">Translating... Please wait.</span>';
+            
+            const startTime = Date.now();
+            
+            try {
+                // Проверяем длину URL перед переводом
+                const encodedText = encodeURIComponent(text);
+                const testUrl = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${targetLang === 'ru' ? 'en' : 'ru'}|${targetLang}`;
+                
+                let info = `Original text length: ${text.length} characters\n`;
+                info += `Encoded text length: ${encodedText.length} characters\n`;
+                info += `Full URL length: ${testUrl.length} characters\n`;
+                info += `URL limit: 500 characters\n`;
+                info += `Status: ${testUrl.length > 500 ? '<span class="error">EXCEEDS LIMIT - Will be split</span>' : '<span class="success">OK - Within limit</span>'}\n\n`;
+                
+                const translated = await translateText(text, targetLang);
+                const endTime = Date.now();
+                const duration = ((endTime - startTime) / 1000).toFixed(2);
+                
+                info += `<span class="success">✓ Translation completed in ${duration}s</span>\n\n`;
+                info += `Translated text (${translated.length} chars):\n`;
+                info += `<span class="success">${translated}</span>`;
+                
+                resultDiv.innerHTML = info;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+                console.error('Test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
+
