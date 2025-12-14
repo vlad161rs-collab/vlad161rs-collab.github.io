@@ -451,67 +451,143 @@ async function setLanguage(lang) {
 async function migrateAllProjects() {
     console.log('Checking projects for translation migration...');
     let needsSave = false;
+    let translatedCount = 0;
     
     for (let i = 0; i < projects.length; i++) {
         const project = projects[i];
+        let projectNeedsUpdate = false;
         
-        // Проверяем title
-        if (!project.title || typeof project.title !== 'object' || !project.title.en || !project.title.ru) {
-            const originalTitle = typeof project.title === 'string' ? project.title : (project.title?.en || project.title?.ru || '');
+        // Очищаем ошибки из title
+        if (project.title && typeof project.title === 'object') {
+            if (project.title.en && (project.title.en.includes('QUERY LENGTH LIMIT') || project.title.en.includes('MAX ALLOWED QUERY'))) {
+                delete project.title.en;
+                projectNeedsUpdate = true;
+            }
+            if (project.title.ru && (project.title.ru.includes('QUERY LENGTH LIMIT') || project.title.ru.includes('MAX ALLOWED QUERY'))) {
+                delete project.title.ru;
+                projectNeedsUpdate = true;
+            }
+        }
+        
+        // Очищаем ошибки из description
+        if (project.description && typeof project.description === 'object') {
+            if (project.description.en && (project.description.en.includes('QUERY LENGTH LIMIT') || project.description.en.includes('MAX ALLOWED QUERY'))) {
+                delete project.description.en;
+                projectNeedsUpdate = true;
+            }
+            if (project.description.ru && (project.description.ru.includes('QUERY LENGTH LIMIT') || project.description.ru.includes('MAX ALLOWED QUERY'))) {
+                delete project.description.ru;
+                projectNeedsUpdate = true;
+            }
+        }
+        
+        // Получаем исходные тексты (приоритет: исходный язык, затем другой язык, затем старый формат)
+        let originalTitle = '';
+        let originalDesc = '';
+        
+        if (project.title) {
+            if (typeof project.title === 'string') {
+                originalTitle = project.title;
+            } else if (typeof project.title === 'object') {
+                // Берем текст на любом языке, который не является ошибкой
+                originalTitle = project.title.en && !project.title.en.includes('QUERY LENGTH LIMIT') ? project.title.en :
+                               project.title.ru && !project.title.ru.includes('QUERY LENGTH LIMIT') ? project.title.ru : '';
+            }
+        }
+        
+        if (project.description) {
+            if (typeof project.description === 'string') {
+                originalDesc = project.description;
+            } else if (typeof project.description === 'object') {
+                originalDesc = project.description.en && !project.description.en.includes('QUERY LENGTH LIMIT') ? project.description.en :
+                              project.description.ru && !project.description.ru.includes('QUERY LENGTH LIMIT') ? project.description.ru : '';
+            }
+        }
+        
+        // Определяем язык исходного текста
+        if (originalTitle || originalDesc) {
+            const sourceLang = detectLanguage((originalTitle || '') + ' ' + (originalDesc || ''));
+            const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
+            
+            // Проверяем и переводим title
             if (originalTitle && originalTitle.trim() !== '') {
-                const sourceLang = detectLanguage(originalTitle);
-                const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
+                if (!project.title || typeof project.title !== 'object') {
+                    project.title = {};
+                }
                 
-                if (!project.title || typeof project.title !== 'object' || !project.title[targetLang]) {
-                    console.log(`Migrating title for project ${i}: ${originalTitle.substring(0, 30)}...`);
+                // Сохраняем исходный текст
+                if (!project.title[sourceLang] || project.title[sourceLang].includes('QUERY LENGTH LIMIT')) {
+                    project.title[sourceLang] = originalTitle;
+                    projectNeedsUpdate = true;
+                }
+                
+                // Переводим на другой язык, если перевода нет или он содержит ошибку
+                if (!project.title[targetLang] || 
+                    project.title[targetLang].includes('QUERY LENGTH LIMIT') || 
+                    project.title[targetLang].includes('MAX ALLOWED QUERY')) {
+                    console.log(`Translating title for project ${i} (${originalTitle.length} chars): ${originalTitle.substring(0, 50)}...`);
                     const translatedTitle = await translateText(originalTitle, targetLang);
                     
-                    // Проверяем, что перевод не содержит ошибку API
-                    const cleanTranslatedTitle = (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY'))
-                        ? translatedTitle
-                        : originalTitle; // Если перевод содержит ошибку, используем исходный текст
-                    
-                    if (!project.title || typeof project.title !== 'object') {
-                        project.title = {};
+                    // Проверяем, что перевод не содержит ошибку
+                    if (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY')) {
+                        project.title[targetLang] = translatedTitle;
+                        projectNeedsUpdate = true;
+                        translatedCount++;
+                    } else {
+                        console.warn(`Translation failed for title, keeping original`);
+                        project.title[targetLang] = originalTitle; // Используем исходный текст как fallback
+                        projectNeedsUpdate = true;
                     }
-                    project.title[sourceLang] = originalTitle;
-                    project.title[targetLang] = cleanTranslatedTitle;
-                    needsSave = true;
+                }
+            }
+            
+            // Проверяем и переводим description
+            if (originalDesc && originalDesc.trim() !== '') {
+                if (!project.description || typeof project.description !== 'object') {
+                    project.description = {};
+                }
+                
+                // Сохраняем исходный текст
+                if (!project.description[sourceLang] || project.description[sourceLang].includes('QUERY LENGTH LIMIT')) {
+                    project.description[sourceLang] = originalDesc;
+                    projectNeedsUpdate = true;
+                }
+                
+                // Переводим на другой язык, если перевода нет или он содержит ошибку
+                if (!project.description[targetLang] || 
+                    project.description[targetLang].includes('QUERY LENGTH LIMIT') || 
+                    project.description[targetLang].includes('MAX ALLOWED QUERY')) {
+                    console.log(`Translating description for project ${i} (${originalDesc.length} chars): ${originalDesc.substring(0, 50)}...`);
+                    const translatedDesc = await translateText(originalDesc, targetLang);
+                    
+                    // Проверяем, что перевод не содержит ошибку
+                    if (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY')) {
+                        project.description[targetLang] = translatedDesc;
+                        projectNeedsUpdate = true;
+                        translatedCount++;
+                    } else {
+                        console.warn(`Translation failed for description, keeping original`);
+                        project.description[targetLang] = originalDesc; // Используем исходный текст как fallback
+                        projectNeedsUpdate = true;
+                    }
                 }
             }
         }
         
-        // Проверяем description
-        if (!project.description || typeof project.description !== 'object' || !project.description.en || !project.description.ru) {
-            const originalDesc = typeof project.description === 'string' ? project.description : (project.description?.en || project.description?.ru || '');
-            if (originalDesc && originalDesc.trim() !== '') {
-                const sourceLang = detectLanguage(originalDesc);
-                const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
-                
-                if (!project.description || typeof project.description !== 'object' || !project.description[targetLang]) {
-                    console.log(`Migrating description for project ${i}: ${originalDesc.substring(0, 30)}...`);
-                    const translatedDesc = await translateText(originalDesc, targetLang);
-                    
-                    // Проверяем, что перевод не содержит ошибку API
-                    const cleanTranslatedDesc = (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY'))
-                        ? translatedDesc
-                        : originalDesc; // Если перевод содержит ошибку, используем исходный текст
-                    
-                    if (!project.description || typeof project.description !== 'object') {
-                        project.description = {};
-                    }
-                    project.description[sourceLang] = originalDesc;
-                    project.description[targetLang] = cleanTranslatedDesc;
-                    needsSave = true;
-                }
-            }
+        if (projectNeedsUpdate) {
+            needsSave = true;
         }
     }
     
     if (needsSave) {
-        console.log('Saving migrated projects...');
+        console.log(`Saving migrated projects... (translated ${translatedCount} texts)`);
         await saveProjects();
-        showNotification(currentLanguage === 'ru' ? 'Проекты переведены!' : 'Projects translated!', 'success');
+        renderProjects(); // Обновляем отображение
+        if (translatedCount > 0) {
+            showNotification(currentLanguage === 'ru' ? `Проекты переведены! (${translatedCount} текстов)` : `Projects translated! (${translatedCount} texts)`, 'success');
+        }
+    } else {
+        console.log('All projects already have translations');
     }
 }
 
