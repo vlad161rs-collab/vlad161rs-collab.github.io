@@ -829,7 +829,13 @@ async function migrateAllProjects() {
                     // Выбираем исходный текст для перевода: приоритет исходному языку, затем целевому
                     const sourceForCurrent = project.title[sourceLang] || project.title[targetLang] || originalTitle;
                     if (sourceForCurrent && sourceForCurrent.trim() !== '') {
-                        console.log(`  → Translating title to current language ${currentLanguage} from ${sourceLang === currentLanguage ? targetLang : sourceLang}...`);
+                        const fromLang = sourceForCurrent === project.title[sourceLang] ? sourceLang : 
+                                       sourceForCurrent === project.title[targetLang] ? targetLang : 
+                                       detectLanguage(sourceForCurrent);
+                        console.log(`  → Translating title to current language ${currentLanguage} from ${fromLang}...`);
+                        if (currentTitle && currentTitleLang !== currentLanguage) {
+                            console.log(`  ⚠ Current title in ${currentLanguage} is actually in ${currentTitleLang}, will retranslate`);
+                        }
                         const translatedTitle = await translateText(sourceForCurrent, currentLanguage);
                         if (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY')) {
                             project.title[currentLanguage] = translatedTitle;
@@ -841,7 +847,7 @@ async function migrateAllProjects() {
                         }
                     }
                 } else {
-                    console.log(`  ✓ Title already has translation in ${currentLanguage}`);
+                    console.log(`  ✓ Title already has correct translation in ${currentLanguage}`);
                 }
             }
             
