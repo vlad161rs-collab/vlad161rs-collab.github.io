@@ -174,8 +174,82 @@ function getProjectText(project, field) {
     if (project.translations && project.translations[field] && project.translations[field][currentLanguage]) {
         return project.translations[field][currentLanguage];
     }
-    // Иначе возвращаем исходный текст (для обратной совместимости)
-    return project[field] || '';
+    // Если это старый формат (просто строка), возвращаем исходный текст
+    // Но помечаем проект для миграции
+    if (project[field] && typeof project[field] === 'string') {
+        // Помечаем проект для миграции (асинхронно)
+        if (!project._migrationQueued) {
+            project._migrationQueued = true;
+            migrateProjectAsync(project);
+        }
+        return project[field];
+    }
+    return '';
+}
+
+// Асинхронная миграция проекта (перевод старых проектов)
+async function migrateProjectAsync(project) {
+    // Проверяем, нужна ли миграция
+    if (!project.title || typeof project.title !== 'string') return;
+    if (project.title && typeof project.title === 'object') return; // Уже мигрирован
+    
+    const originalTitle = project.title;
+    const originalDescription = project.description || '';
+    
+    // Определяем язык исходного текста
+    const sourceLang = detectLanguage(originalTitle + ' ' + originalDescription);
+    const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
+    
+    console.log(`Migrating project "${originalTitle}" from ${sourceLang} to ${targetLang}`);
+    
+    try {
+        // Переводим на другой язык
+        const [translatedTitle, translatedDescription] = await Promise.all([
+            translateText(originalTitle, targetLang),
+            originalDescription ? translateText(originalDescription, targetLang) : Promise.resolve('')
+        ]);
+        
+        // Обновляем структуру проекта
+        project.title = {
+            [sourceLang]: originalTitle,
+            [targetLang]: translatedTitle
+        };
+        project.description = {
+            [sourceLang]: originalDescription,
+            [targetLang]: translatedDescription
+        };
+        
+        // Сохраняем обновленные проекты
+        await saveProjects();
+        console.log(`Project "${originalTitle}" migrated successfully`);
+        
+        // Перерисовываем проекты
+        renderProjects();
+    } catch (error) {
+        console.error('Error migrating project:', error);
+        project._migrationQueued = false; // Разрешаем повторную попытку
+    }
+}
+
+// Миграция всех старых проектов при загрузке
+async function migrateOldProjects() {
+    let needsMigration = false;
+    
+    for (let i = 0; i < projects.length; i++) {
+        const project = projects[i];
+        
+        // Проверяем, нужна ли миграция
+        if (project.title && typeof project.title === 'string') {
+            needsMigration = true;
+            project._migrationQueued = true;
+            await migrateProjectAsync(project);
+        }
+    }
+    
+    if (needsMigration) {
+        console.log('Old projects migration completed');
+        showNotification(currentLanguage === 'ru' ? 'Старые проекты переведены!' : 'Old projects translated!', 'success');
+    }
 }
 
 // Автоматический перевод текста через API
@@ -215,12 +289,74 @@ function detectLanguage(text) {
 }
 
 // Переключение языка
-function setLanguage(lang) {
+async function setLanguage(lang) {
     if (translations[lang]) {
         currentLanguage = lang;
         localStorage.setItem('portfolioLanguage', lang);
         updateLanguageUI();
+        
+        // Мигрируем все проекты без переводов
+        await migrateAllProjects();
+        
         updateAllTexts();
+    }
+}
+
+// Миграция всех проектов без переводов
+async function migrateAllProjects() {
+    console.log('Checking projects for translation migration...');
+    let needsSave = false;
+    
+    for (let i = 0; i < projects.length; i++) {
+        const project = projects[i];
+        
+        // Проверяем title
+        if (!project.title || typeof project.title !== 'object' || !project.title.en || !project.title.ru) {
+            const originalTitle = typeof project.title === 'string' ? project.title : (project.title?.en || project.title?.ru || '');
+            if (originalTitle && originalTitle.trim() !== '') {
+                const sourceLang = detectLanguage(originalTitle);
+                const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
+                
+                if (!project.title || typeof project.title !== 'object' || !project.title[targetLang]) {
+                    console.log(`Migrating title for project ${i}: ${originalTitle.substring(0, 30)}...`);
+                    const translatedTitle = await translateText(originalTitle, targetLang);
+                    
+                    if (!project.title || typeof project.title !== 'object') {
+                        project.title = {};
+                    }
+                    project.title[sourceLang] = originalTitle;
+                    project.title[targetLang] = translatedTitle;
+                    needsSave = true;
+                }
+            }
+        }
+        
+        // Проверяем description
+        if (!project.description || typeof project.description !== 'object' || !project.description.en || !project.description.ru) {
+            const originalDesc = typeof project.description === 'string' ? project.description : (project.description?.en || project.description?.ru || '');
+            if (originalDesc && originalDesc.trim() !== '') {
+                const sourceLang = detectLanguage(originalDesc);
+                const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
+                
+                if (!project.description || typeof project.description !== 'object' || !project.description[targetLang]) {
+                    console.log(`Migrating description for project ${i}: ${originalDesc.substring(0, 30)}...`);
+                    const translatedDesc = await translateText(originalDesc, targetLang);
+                    
+                    if (!project.description || typeof project.description !== 'object') {
+                        project.description = {};
+                    }
+                    project.description[sourceLang] = originalDesc;
+                    project.description[targetLang] = translatedDesc;
+                    needsSave = true;
+                }
+            }
+        }
+    }
+    
+    if (needsSave) {
+        console.log('Saving migrated projects...');
+        await saveProjects();
+        showNotification(currentLanguage === 'ru' ? 'Проекты переведены!' : 'Projects translated!', 'success');
     }
 }
 
@@ -406,9 +542,18 @@ async function loadProjects() {
                         const localProjects = JSON.parse(saved);
                         if (Array.isArray(localProjects) && localProjects.length > 0) {
                             projects = localProjects;
-                            console.log(`Loaded ${projects.length} project(s) from localStorage:`, projects.map(p => p.title));
+                            console.log(`Loaded ${projects.length} project(s) from localStorage:`, projects.map(p => {
+                                if (typeof p.title === 'string') return p.title;
+                                return p.title?.en || p.title?.ru || 'Unknown';
+                            }));
                             renderProjects();
-                            // Предлагаем миграцию
+                            
+                            // Мигрируем старые проекты (асинхронно, без блокировки UI)
+                            setTimeout(() => {
+                                migrateOldProjects();
+                            }, 1000);
+                            
+                            // Предлагаем миграцию на сервер
                             offerMigration();
                         } else {
                             projects = [];
@@ -1584,20 +1729,26 @@ function setupLanguageButton() {
 // Инициализация
 // Ждем загрузки DOM
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         setupLanguageButton();
         updateLanguageUI();
-        updateAllTexts();
         checkAuth();
-        loadProjects();
+        await loadProjects();
+        // Мигрируем старые проекты после загрузки
+        await migrateAllProjects();
+        updateAllTexts();
     });
 } else {
     // DOM уже загружен
     setupLanguageButton();
     updateLanguageUI();
-    updateAllTexts();
     checkAuth();
-    loadProjects();
+    (async () => {
+        await loadProjects();
+        // Мигрируем старые проекты после загрузки
+        await migrateAllProjects();
+        updateAllTexts();
+    })();
 }
 
 // Закрытие по Escape и навигация по галерее
