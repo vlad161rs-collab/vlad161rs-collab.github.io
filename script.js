@@ -407,17 +407,57 @@ async function translateWithLibreTranslate(text, sourceLang, targetLang) {
             
             if (response.ok) {
                 const data = await response.json();
-                if (data.translatedText) {
+                if (data.translatedText && data.translatedText.trim() !== '') {
                     return data.translatedText;
                 }
+            } else if (response.status === 429) {
+                console.warn('LibreTranslate rate limit, will try alternative...');
+                throw new Error('Rate limit');
             }
         } catch (error) {
-            console.error('LibreTranslate error:', error);
+            if (error.message !== 'Rate limit') {
+                console.error('LibreTranslate error:', error);
+            }
+            throw error;
         }
     }
     
     // Для длинных текстов разбиваем на части
     return await translateLongTextLibre(text, sourceLang, targetLang, MAX_CHUNK_LENGTH);
+}
+
+// Альтернативный endpoint для LibreTranslate
+async function translateWithLibreTranslateAlt(text, sourceLang, targetLang) {
+    const MAX_CHUNK_LENGTH = 2000;
+    
+    if (text.length <= MAX_CHUNK_LENGTH) {
+        try {
+            // Пробуем другой публичный endpoint
+            const response = await fetch('https://translate.argosopentech.com/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    q: text,
+                    source: sourceLang,
+                    target: targetLang,
+                    format: 'text'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.translatedText && data.translatedText.trim() !== '') {
+                    return data.translatedText;
+                }
+            }
+        } catch (error) {
+            console.error('LibreTranslate alternative error:', error);
+        }
+    }
+    
+    return null;
 }
 
 // Перевод через Google Translate прокси (если доступен)
