@@ -163,36 +163,68 @@ function t(key, params = {}) {
 // Получить текст проекта на текущем языке
 function getProjectText(project, field) {
     // Если проект имеет структуру с переводами
-    if (project[field] && typeof project[field] === 'object' && project[field][currentLanguage]) {
-        let text = project[field][currentLanguage];
-        // Проверяем, не является ли текст ошибкой API
-        if (text && (text.includes('QUERY LENGTH LIMIT') || text.includes('MAX ALLOWED QUERY'))) {
-            // Если это ошибка, пытаемся получить исходный текст на другом языке
-            const otherLang = currentLanguage === 'ru' ? 'en' : 'ru';
-            if (project[field][otherLang] && !project[field][otherLang].includes('QUERY LENGTH LIMIT')) {
-                return project[field][otherLang];
+    if (project[field] && typeof project[field] === 'object') {
+        // Пробуем получить текст на текущем языке
+        if (project[field][currentLanguage]) {
+            let text = project[field][currentLanguage];
+            // Проверяем, не является ли текст ошибкой API
+            if (text && !text.includes('QUERY LENGTH LIMIT') && !text.includes('MAX ALLOWED QUERY')) {
+                return text;
             }
-            // Если оба языка содержат ошибку, возвращаем пустую строку
-            return '';
         }
-        return text;
+        
+        // Если перевода на текущий язык нет или он содержит ошибку, пробуем другой язык как fallback
+        const otherLang = currentLanguage === 'ru' ? 'en' : 'ru';
+        if (project[field][otherLang]) {
+            const text = project[field][otherLang];
+            if (text && !text.includes('QUERY LENGTH LIMIT') && !text.includes('MAX ALLOWED QUERY')) {
+                // Если перевода на текущий язык нет, запускаем миграцию в фоне
+                if (!project[field][currentLanguage] && !project._migrationQueued) {
+                    project._migrationQueued = true;
+                    migrateProjectAsync(project);
+                }
+                return text; // Возвращаем текст на другом языке как временный fallback
+            }
+        }
+        
+        // Если оба языка содержат ошибку или пусты, возвращаем пустую строку
+        return '';
     }
+    
     // Если есть переводы в старом формате (title_en, title_ru)
     if (project[`${field}_${currentLanguage}`]) {
         const text = project[`${field}_${currentLanguage}`];
-        if (text && (text.includes('QUERY LENGTH LIMIT') || text.includes('MAX ALLOWED QUERY'))) {
-            return '';
+        if (text && !text.includes('QUERY LENGTH LIMIT') && !text.includes('MAX ALLOWED QUERY')) {
+            return text;
         }
-        return text;
     }
+    
+    // Пробуем другой язык в старом формате
+    const otherLang = currentLanguage === 'ru' ? 'en' : 'ru';
+    if (project[`${field}_${otherLang}`]) {
+        const text = project[`${field}_${otherLang}`];
+        if (text && !text.includes('QUERY LENGTH LIMIT') && !text.includes('MAX ALLOWED QUERY')) {
+            return text;
+        }
+    }
+    
     // Если есть переводы в новом формате (translations)
-    if (project.translations && project.translations[field] && project.translations[field][currentLanguage]) {
-        const text = project.translations[field][currentLanguage];
-        if (text && (text.includes('QUERY LENGTH LIMIT') || text.includes('MAX ALLOWED QUERY'))) {
-            return '';
+    if (project.translations && project.translations[field]) {
+        if (project.translations[field][currentLanguage]) {
+            const text = project.translations[field][currentLanguage];
+            if (text && !text.includes('QUERY LENGTH LIMIT') && !text.includes('MAX ALLOWED QUERY')) {
+                return text;
+            }
         }
-        return text;
+        // Пробуем другой язык
+        if (project.translations[field][otherLang]) {
+            const text = project.translations[field][otherLang];
+            if (text && !text.includes('QUERY LENGTH LIMIT') && !text.includes('MAX ALLOWED QUERY')) {
+                return text;
+            }
+        }
     }
+    
     // Если это старый формат (просто строка), возвращаем исходный текст
     // Но помечаем проект для миграции
     if (project[field] && typeof project[field] === 'string') {
@@ -208,6 +240,7 @@ function getProjectText(project, field) {
         }
         return text;
     }
+    
     return '';
 }
 
