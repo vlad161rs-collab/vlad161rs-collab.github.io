@@ -259,10 +259,89 @@ async function translateText(text, targetLang) {
     // Определяем исходный язык
     const sourceLang = targetLang === 'ru' ? 'en' : 'ru';
     
+    // Проверяем длину текста (API имеет лимит ~500 символов)
+    const maxLength = 450; // Оставляем запас
+    
     try {
-        // Используем бесплатный API перевода (MyMemory Translation API)
+        // Если текст короткий, переводим целиком
+        if (text.length <= maxLength) {
+            const response = await fetch(
+                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`
+            );
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.responseData && data.responseData.translatedText) {
+                    return data.responseData.translatedText;
+                }
+            }
+        } else {
+            // Для длинных текстов разбиваем на предложения и переводим по частям
+            console.log(`Text too long (${text.length} chars), splitting into parts...`);
+            const sentences = text.split(/[.!?]\s+/).filter(s => s.trim().length > 0);
+            const translatedParts = [];
+            
+            let currentChunk = '';
+            for (let i = 0; i < sentences.length; i++) {
+                const sentence = sentences[i];
+                const testChunk = currentChunk ? currentChunk + '. ' + sentence : sentence;
+                
+                if (testChunk.length <= maxLength) {
+                    currentChunk = testChunk;
+                } else {
+                    // Переводим накопленный chunk
+                    if (currentChunk) {
+                        const translated = await translateTextChunk(currentChunk, sourceLang, targetLang);
+                        translatedParts.push(translated);
+                    }
+                    // Начинаем новый chunk
+                    if (sentence.length <= maxLength) {
+                        currentChunk = sentence;
+                    } else {
+                        // Даже одно предложение слишком длинное - разбиваем по словам
+                        const words = sentence.split(/\s+/);
+                        let wordChunk = '';
+                        for (const word of words) {
+                            if ((wordChunk + ' ' + word).length <= maxLength) {
+                                wordChunk = wordChunk ? wordChunk + ' ' + word : word;
+                            } else {
+                                if (wordChunk) {
+                                    const translated = await translateTextChunk(wordChunk, sourceLang, targetLang);
+                                    translatedParts.push(translated);
+                                }
+                                wordChunk = word;
+                            }
+                        }
+                        if (wordChunk) {
+                            const translated = await translateTextChunk(wordChunk, sourceLang, targetLang);
+                            translatedParts.push(translated);
+                        }
+                        currentChunk = '';
+                    }
+                }
+            }
+            
+            // Переводим последний chunk
+            if (currentChunk) {
+                const translated = await translateTextChunk(currentChunk, sourceLang, targetLang);
+                translatedParts.push(translated);
+            }
+            
+            return translatedParts.join('. ');
+        }
+    } catch (error) {
+        console.error('Translation error:', error);
+    }
+    
+    // Если перевод не удался, возвращаем исходный текст
+    return text;
+}
+
+// Вспомогательная функция для перевода части текста
+async function translateTextChunk(chunk, sourceLang, targetLang) {
+    try {
         const response = await fetch(
-            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`
+            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(chunk)}&langpair=${sourceLang}|${targetLang}`
         );
         
         if (response.ok) {
@@ -272,11 +351,11 @@ async function translateText(text, targetLang) {
             }
         }
     } catch (error) {
-        console.error('Translation error:', error);
+        console.error('Translation chunk error:', error);
     }
     
-    // Если перевод не удался, возвращаем исходный текст
-    return text;
+    // Если перевод не удался, возвращаем исходный chunk
+    return chunk;
 }
 
 // Определить язык текста (простая эвристика)
