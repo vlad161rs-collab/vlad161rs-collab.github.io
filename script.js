@@ -174,7 +174,12 @@ function setLanguage(lang) {
 function updateLanguageUI() {
     const langBtn = document.getElementById('langBtn');
     if (langBtn) {
-        langBtn.textContent = currentLanguage === 'en' ? '🇷🇺 RU' : '🇬🇧 EN';
+        const span = langBtn.querySelector('span');
+        if (span) {
+            span.textContent = currentLanguage === 'en' ? '🇷🇺 RU' : '🇬🇧 EN';
+        } else {
+            langBtn.textContent = currentLanguage === 'en' ? '🇷🇺 RU' : '🇬🇧 EN';
+        }
         langBtn.title = currentLanguage === 'en' ? 'Switch to Russian' : 'Переключить на английский';
     }
 }
@@ -1445,21 +1450,49 @@ window.editProject = editProject;
 window.deleteProject = deleteProject;
 
 // Обработчик кнопки переключения языка
-const langBtn = document.getElementById('langBtn');
-if (langBtn) {
-    langBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const newLang = currentLanguage === 'en' ? 'ru' : 'en';
-        setLanguage(newLang);
-    });
+function setupLanguageButton() {
+    const langBtn = document.getElementById('langBtn');
+    if (langBtn) {
+        // Удаляем старый обработчик, если есть
+        const newLangBtn = langBtn.cloneNode(true);
+        langBtn.parentNode.replaceChild(newLangBtn, langBtn);
+        
+        // Добавляем новый обработчик
+        newLangBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log('Language button clicked, current language:', currentLanguage);
+            const newLang = currentLanguage === 'en' ? 'ru' : 'en';
+            setLanguage(newLang);
+        });
+        
+        // Убеждаемся, что кнопка кликабельна
+        newLangBtn.style.pointerEvents = 'auto';
+        newLangBtn.style.cursor = 'pointer';
+        newLangBtn.style.zIndex = '100';
+    } else {
+        console.error('langBtn not found');
+    }
 }
 
 // Инициализация
-updateLanguageUI(); // Обновляем UI кнопки языка
-updateAllTexts(); // Обновляем все тексты при загрузке
-checkAuth();
-loadProjects();
+// Ждем загрузки DOM
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setupLanguageButton();
+        updateLanguageUI();
+        updateAllTexts();
+        checkAuth();
+        loadProjects();
+    });
+} else {
+    // DOM уже загружен
+    setupLanguageButton();
+    updateLanguageUI();
+    updateAllTexts();
+    checkAuth();
+    loadProjects();
+}
 
 // Закрытие по Escape и навигация по галерее
 document.addEventListener('keydown', (e) => {
