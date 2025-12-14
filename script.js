@@ -2,7 +2,7 @@
 let projects = [];
 let currentEditId = null;
 let isAuthenticated = false;
-// Определяем язык по умолчанию: сначала из localStorage, затем из браузера, затем 'ru'
+// Определяем язык по умолчанию: сначала из localStorage, затем из браузера, затем 'en'
 function getDefaultLanguage() {
     const saved = localStorage.getItem('portfolioLanguage');
     if (saved === 'en' || saved === 'ru') {
@@ -13,6 +13,7 @@ function getDefaultLanguage() {
     if (browserLang.startsWith('ru')) {
         return 'ru';
     }
+    // По умолчанию английский
     return 'en';
 }
 
@@ -1048,10 +1049,11 @@ function updateLanguageUI() {
     const langBtn = document.getElementById('langBtn');
     if (langBtn) {
         const span = langBtn.querySelector('span');
+        // Показываем текущий язык, а не язык для переключения
         if (span) {
-            span.textContent = currentLanguage === 'en' ? '🇷🇺 RU' : '🇬🇧 EN';
+            span.textContent = currentLanguage === 'en' ? '🇬🇧 EN' : '🇷🇺 RU';
         } else {
-            langBtn.textContent = currentLanguage === 'en' ? '🇷🇺 RU' : '🇬🇧 EN';
+            langBtn.textContent = currentLanguage === 'en' ? '🇬🇧 EN' : '🇷🇺 RU';
         }
         langBtn.title = currentLanguage === 'en' ? 'Switch to Russian' : 'Переключить на английский';
     }
