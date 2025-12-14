@@ -699,6 +699,7 @@ async function migrateAllProjects() {
     for (let i = 0; i < projects.length; i++) {
         const project = projects[i];
         let projectNeedsUpdate = false;
+        console.log(`\n=== Project ${i}: ${project.title?.en || project.title?.ru || project.title || 'Untitled'} ===`);
         
         // Очищаем ошибки из title
         if (project.title && typeof project.title === 'object') {
@@ -731,19 +732,25 @@ async function migrateAllProjects() {
         if (project.title) {
             if (typeof project.title === 'string') {
                 originalTitle = project.title;
+                console.log(`  Title: string format "${originalTitle.substring(0, 50)}..."`);
             } else if (typeof project.title === 'object') {
                 // Берем текст на любом языке, который не является ошибкой
-                originalTitle = project.title.en && !project.title.en.includes('QUERY LENGTH LIMIT') ? project.title.en :
-                               project.title.ru && !project.title.ru.includes('QUERY LENGTH LIMIT') ? project.title.ru : '';
+                const titleEn = project.title.en && !project.title.en.includes('QUERY LENGTH LIMIT') ? project.title.en : null;
+                const titleRu = project.title.ru && !project.title.ru.includes('QUERY LENGTH LIMIT') ? project.title.ru : null;
+                originalTitle = titleEn || titleRu || '';
+                console.log(`  Title: object format - en: ${titleEn ? '✓' : '✗'}, ru: ${titleRu ? '✓' : '✗'}`);
             }
         }
         
         if (project.description) {
             if (typeof project.description === 'string') {
                 originalDesc = project.description;
+                console.log(`  Description: string format (${originalDesc.length} chars)`);
             } else if (typeof project.description === 'object') {
-                originalDesc = project.description.en && !project.description.en.includes('QUERY LENGTH LIMIT') ? project.description.en :
-                              project.description.ru && !project.description.ru.includes('QUERY LENGTH LIMIT') ? project.description.ru : '';
+                const descEn = project.description.en && !project.description.en.includes('QUERY LENGTH LIMIT') ? project.description.en : null;
+                const descRu = project.description.ru && !project.description.ru.includes('QUERY LENGTH LIMIT') ? project.description.ru : null;
+                originalDesc = descEn || descRu || '';
+                console.log(`  Description: object format - en: ${descEn ? '✓' : '✗'}, ru: ${descRu ? '✓' : '✗'}`);
             }
         }
         
@@ -751,6 +758,7 @@ async function migrateAllProjects() {
         if (originalTitle || originalDesc) {
             const sourceLang = detectLanguage((originalTitle || '') + ' ' + (originalDesc || ''));
             const targetLang = sourceLang === 'ru' ? 'en' : 'ru';
+            console.log(`  Detected source language: ${sourceLang}, target: ${targetLang}`);
             
             // Проверяем и переводим title на оба языка
             if (originalTitle && originalTitle.trim() !== '') {
@@ -762,13 +770,16 @@ async function migrateAllProjects() {
                 if (!project.title[sourceLang] || project.title[sourceLang].includes('QUERY LENGTH LIMIT')) {
                     project.title[sourceLang] = originalTitle;
                     projectNeedsUpdate = true;
+                    console.log(`  ✓ Saved original title in ${sourceLang}`);
                 }
                 
                 // Переводим на другой язык, если перевода нет или он содержит ошибку
-                if (!project.title[targetLang] || 
+                const needsTitleTranslation = !project.title[targetLang] || 
                     project.title[targetLang].includes('QUERY LENGTH LIMIT') || 
-                    project.title[targetLang].includes('MAX ALLOWED QUERY')) {
-                    console.log(`Translating title for project ${i} (${originalTitle.length} chars) from ${sourceLang} to ${targetLang}: ${originalTitle.substring(0, 50)}...`);
+                    project.title[targetLang].includes('MAX ALLOWED QUERY');
+                
+                if (needsTitleTranslation) {
+                    console.log(`  → Translating title (${originalTitle.length} chars) from ${sourceLang} to ${targetLang}...`);
                     const translatedTitle = await translateText(originalTitle, targetLang);
                     
                     // Проверяем, что перевод не содержит ошибку
@@ -776,11 +787,14 @@ async function migrateAllProjects() {
                         project.title[targetLang] = translatedTitle;
                         projectNeedsUpdate = true;
                         translatedCount++;
+                        console.log(`  ✓ Title translated successfully`);
                     } else {
-                        console.warn(`Translation failed for title, keeping original`);
+                        console.warn(`  ✗ Translation failed for title, keeping original`);
                         project.title[targetLang] = originalTitle; // Используем исходный текст как fallback
                         projectNeedsUpdate = true;
                     }
+                } else {
+                    console.log(`  ✓ Title already has translation in ${targetLang}`);
                 }
             }
             
@@ -794,13 +808,16 @@ async function migrateAllProjects() {
                 if (!project.description[sourceLang] || project.description[sourceLang].includes('QUERY LENGTH LIMIT')) {
                     project.description[sourceLang] = originalDesc;
                     projectNeedsUpdate = true;
+                    console.log(`  ✓ Saved original description in ${sourceLang}`);
                 }
                 
                 // Переводим на другой язык, если перевода нет или он содержит ошибку
-                if (!project.description[targetLang] || 
+                const needsDescTranslation = !project.description[targetLang] || 
                     project.description[targetLang].includes('QUERY LENGTH LIMIT') || 
-                    project.description[targetLang].includes('MAX ALLOWED QUERY')) {
-                    console.log(`Translating description for project ${i} (${originalDesc.length} chars) from ${sourceLang} to ${targetLang}: ${originalDesc.substring(0, 50)}...`);
+                    project.description[targetLang].includes('MAX ALLOWED QUERY');
+                
+                if (needsDescTranslation) {
+                    console.log(`  → Translating description (${originalDesc.length} chars) from ${sourceLang} to ${targetLang}...`);
                     const translatedDesc = await translateText(originalDesc, targetLang);
                     
                     // Проверяем, что перевод не содержит ошибку
@@ -808,13 +825,18 @@ async function migrateAllProjects() {
                         project.description[targetLang] = translatedDesc;
                         projectNeedsUpdate = true;
                         translatedCount++;
+                        console.log(`  ✓ Description translated successfully`);
                     } else {
-                        console.warn(`Translation failed for description, keeping original`);
+                        console.warn(`  ✗ Translation failed for description, keeping original`);
                         project.description[targetLang] = originalDesc; // Используем исходный текст как fallback
                         projectNeedsUpdate = true;
                     }
+                } else {
+                    console.log(`  ✓ Description already has translation in ${targetLang}`);
                 }
             }
+        } else {
+            console.log(`  ⚠ No original text found for this project`);
         }
         
         if (projectNeedsUpdate) {
