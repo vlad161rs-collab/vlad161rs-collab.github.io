@@ -2,7 +2,21 @@
 let projects = [];
 let currentEditId = null;
 let isAuthenticated = false;
-let currentLanguage = localStorage.getItem('portfolioLanguage') || 'en'; // 'en' или 'ru'
+// Определяем язык по умолчанию: сначала из localStorage, затем из браузера, затем 'ru'
+function getDefaultLanguage() {
+    const saved = localStorage.getItem('portfolioLanguage');
+    if (saved === 'en' || saved === 'ru') {
+        return saved;
+    }
+    // Определяем язык браузера
+    const browserLang = (navigator.language || navigator.userLanguage || 'en').toLowerCase();
+    if (browserLang.startsWith('ru')) {
+        return 'ru';
+    }
+    return 'en';
+}
+
+let currentLanguage = getDefaultLanguage(); // 'en' или 'ru'
 
 // Переводы
 const translations = {
