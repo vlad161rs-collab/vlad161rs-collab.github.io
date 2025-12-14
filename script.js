@@ -276,67 +276,256 @@ async function migrateOldProjects() {
     }
 }
 
-// Автоматический перевод текста через API
-// СТРОГИЙ КОНТРОЛЬ ДЛИНЫ URL: лимит API = 500 символов для всего URL
+// Автоматический перевод текста через API с несколькими fallback методами
 async function translateText(text, targetLang) {
     if (!text || text.trim() === '') return '';
     
     // Определяем исходный язык
     const sourceLang = targetLang === 'ru' ? 'en' : 'ru';
     
-    // Базовый URL: "https://api.mymemory.translated.net/get?q=" = 43 символа
-    // + "&langpair=en|ru" = 15 символов
-    // Итого: 58 символов базового URL
-    // Остается: 500 - 58 = 442 символа для закодированного текста
-    // encodeURIComponent может увеличить длину в 3 раза для спецсимволов
-    // Безопасный лимит: 442 / 3 = ~147, но берем 100 для гарантии
+    // Пробуем несколько методов перевода с fallback
+    let result = null;
+    
+    // Метод 1: MyMemory API (основной)
+    try {
+        result = await translateWithMyMemory(text, sourceLang, targetLang);
+        if (result && result !== text && !result.includes('QUERY LENGTH LIMIT') && !result.includes('MAX ALLOWED QUERY')) {
+            return result;
+        }
+    } catch (error) {
+        console.warn('MyMemory translation failed, trying alternative...', error);
+    }
+    
+    // Метод 2: LibreTranslate API (альтернативный бесплатный API)
+    try {
+        result = await translateWithLibreTranslate(text, sourceLang, targetLang);
+        if (result && result !== text) {
+            return result;
+        }
+    } catch (error) {
+        console.warn('LibreTranslate translation failed, trying alternative...', error);
+    }
+    
+    // Метод 3: Google Translate через прокси (если доступен)
+    try {
+        result = await translateWithGoogleProxy(text, sourceLang, targetLang);
+        if (result && result !== text) {
+            return result;
+        }
+    } catch (error) {
+        console.warn('Google Translate proxy failed, using fallback...', error);
+    }
+    
+    // Если все методы не сработали, возвращаем исходный текст
+    console.warn('All translation methods failed, returning original text');
+    return text;
+}
+
+// Перевод через MyMemory API с правильным разбиением
+async function translateWithMyMemory(text, sourceLang, targetLang) {
     const BASE_URL_LENGTH = 58;
     const MAX_URL_LENGTH = 500;
     const MAX_ENCODED_TEXT_LENGTH = MAX_URL_LENGTH - BASE_URL_LENGTH; // 442
-    const MAX_TEXT_LENGTH = 100; // Консервативный лимит для исходного текста
+    const MAX_TEXT_LENGTH = 100; // Консервативный лимит
     
-    try {
-        // Всегда разбиваем текст на части для гарантии
-        return await translateLongText(text, sourceLang, targetLang, MAX_TEXT_LENGTH, MAX_ENCODED_TEXT_LENGTH);
-    } catch (error) {
-        console.error('Translation error:', error);
-        return text;
-    }
+    // Всегда разбиваем текст на части для гарантии
+    return await translateLongText(text, sourceLang, targetLang, MAX_TEXT_LENGTH, MAX_ENCODED_TEXT_LENGTH, 'mymemory');
 }
 
-// Перевод длинного текста по частям с строгим контролем длины
-async function translateLongText(text, sourceLang, targetLang, maxTextLength, maxEncodedLength) {
-    if (!text || text.trim() === '') return '';
+// Перевод через LibreTranslate API (более надежный для длинных текстов)
+async function translateWithLibreTranslate(text, sourceLang, targetLang) {
+    // LibreTranslate имеет более высокие лимиты, но разбиваем для надежности
+    const MAX_CHUNK_LENGTH = 2000; // LibreTranslate поддерживает до 5000 символов
     
-    console.log(`Translating text (${text.length} chars), splitting into safe chunks...`);
+    if (text.length <= MAX_CHUNK_LENGTH) {
+        try {
+            const response = await fetch('https://libretranslate.com/translate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    q: text,
+                    source: sourceLang,
+                    target: targetLang,
+                    format: 'text'
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.translatedText) {
+                    return data.translatedText;
+                }
+            }
+        } catch (error) {
+            console.error('LibreTranslate error:', error);
+        }
+    }
     
-    // Разбиваем на слова для точного контроля
-    const words = text.split(/(\s+)/);
+    // Для длинных текстов разбиваем на части
+    return await translateLongTextLibre(text, sourceLang, targetLang, MAX_CHUNK_LENGTH);
+}
+
+// Перевод через Google Translate прокси (если доступен)
+async function translateWithGoogleProxy(text, sourceLang, targetLang) {
+    // Используем публичный прокси для Google Translate
+    try {
+        const langCode = targetLang === 'ru' ? 'ru' : 'en';
+        const sourceCode = sourceLang === 'ru' ? 'ru' : 'en';
+        
+        // Пробуем через простой прокси (может не работать из-за CORS)
+        const response = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceCode}&tl=${langCode}&dt=t&q=${encodeURIComponent(text)}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data[0] && data[0][0] && data[0][0][0]) {
+                return data[0].map(item => item[0]).join('');
+            }
+        }
+    } catch (error) {
+        // Google Translate может блокировать CORS, это нормально
+        console.warn('Google Translate CORS blocked, skipping...');
+    }
+    
+    return null;
+}
+
+// Разбиение и перевод длинного текста через LibreTranslate
+async function translateLongTextLibre(text, sourceLang, targetLang, maxChunkLength) {
+    // Разбиваем на предложения для сохранения контекста
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
     const translatedParts = [];
     let currentChunk = '';
     
-    for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-        const testChunk = currentChunk ? currentChunk + word : word;
+    for (const sentence of sentences) {
+        if ((currentChunk + sentence).length <= maxChunkLength) {
+            currentChunk += sentence;
+        } else {
+            if (currentChunk.trim()) {
+                const translated = await translateChunkLibre(currentChunk.trim(), sourceLang, targetLang);
+                translatedParts.push(translated || currentChunk);
+            }
+            currentChunk = sentence;
+        }
+    }
+    
+    if (currentChunk.trim()) {
+        const translated = await translateChunkLibre(currentChunk.trim(), sourceLang, targetLang);
+        translatedParts.push(translated || currentChunk);
+    }
+    
+    return translatedParts.join(' ');
+}
+
+// Перевод части текста через LibreTranslate
+async function translateChunkLibre(chunk, sourceLang, targetLang) {
+    try {
+        const response = await fetch('https://libretranslate.com/translate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                q: chunk,
+                source: sourceLang,
+                target: targetLang,
+                format: 'text'
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.translatedText) {
+                return data.translatedText;
+            }
+        }
+    } catch (error) {
+        console.error('LibreTranslate chunk error:', error);
+    }
+    
+    return chunk;
+}
+
+// Перевод длинного текста по частям с строгим контролем длины
+async function translateLongText(text, sourceLang, targetLang, maxTextLength, maxEncodedLength, apiType = 'mymemory') {
+    if (!text || text.trim() === '') return '';
+    
+    console.log(`Translating text (${text.length} chars) using ${apiType}, splitting into safe chunks...`);
+    
+    // Улучшенное разбиение: сначала по предложениям (сохраняет контекст), затем по словам
+    // Разбиваем на предложения для лучшего контекста
+    const sentencePattern = /([^.!?]+[.!?]+|\n+)/g;
+    const sentences = text.match(sentencePattern) || [text];
+    const translatedParts = [];
+    let currentChunk = '';
+    
+    for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i];
+        const testChunk = currentChunk ? currentChunk + sentence : sentence;
         
         // Проверяем длину исходного текста
         if (testChunk.length > maxTextLength) {
             // Переводим накопленный chunk
             if (currentChunk.trim()) {
-                const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
-                translatedParts.push(translated);
+                const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength, apiType);
+                if (translated && !translated.includes('QUERY LENGTH LIMIT')) {
+                    translatedParts.push(translated);
+                } else {
+                    translatedParts.push(currentChunk); // Fallback на исходный текст
+                }
             }
-            currentChunk = word;
+            
+            // Если одно предложение слишком длинное, разбиваем по словам
+            if (sentence.length > maxTextLength) {
+                const words = sentence.split(/(\s+)/);
+                let wordChunk = '';
+                
+                for (const word of words) {
+                    const testWordChunk = wordChunk ? wordChunk + word : word;
+                    const encoded = encodeURIComponent(testWordChunk);
+                    
+                    if (testWordChunk.length > maxTextLength || encoded.length > maxEncodedLength) {
+                        if (wordChunk.trim()) {
+                            const translated = await translateTextChunkSafe(wordChunk.trim(), sourceLang, targetLang, maxEncodedLength, apiType);
+                            if (translated && !translated.includes('QUERY LENGTH LIMIT')) {
+                                translatedParts.push(translated);
+                            } else {
+                                translatedParts.push(wordChunk);
+                            }
+                        }
+                        wordChunk = word;
+                    } else {
+                        wordChunk = testWordChunk;
+                    }
+                }
+                
+                if (wordChunk.trim()) {
+                    const translated = await translateTextChunkSafe(wordChunk.trim(), sourceLang, targetLang, maxEncodedLength, apiType);
+                    if (translated && !translated.includes('QUERY LENGTH LIMIT')) {
+                        translatedParts.push(translated);
+                    } else {
+                        translatedParts.push(wordChunk);
+                    }
+                }
+                currentChunk = '';
+            } else {
+                currentChunk = sentence;
+            }
         } else {
             // Проверяем длину закодированного текста
             const encoded = encodeURIComponent(testChunk);
             if (encoded.length > maxEncodedLength) {
                 // Переводим накопленный chunk
                 if (currentChunk.trim()) {
-                    const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
-                    translatedParts.push(translated);
+                    const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength, apiType);
+                    if (translated && !translated.includes('QUERY LENGTH LIMIT')) {
+                        translatedParts.push(translated);
+                    } else {
+                        translatedParts.push(currentChunk);
+                    }
                 }
-                currentChunk = word;
+                currentChunk = sentence;
             } else {
                 currentChunk = testChunk;
             }
@@ -345,8 +534,12 @@ async function translateLongText(text, sourceLang, targetLang, maxTextLength, ma
     
     // Переводим последний chunk
     if (currentChunk.trim()) {
-        const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength);
-        translatedParts.push(translated);
+        const translated = await translateTextChunkSafe(currentChunk.trim(), sourceLang, targetLang, maxEncodedLength, apiType);
+        if (translated && !translated.includes('QUERY LENGTH LIMIT')) {
+            translatedParts.push(translated);
+        } else {
+            translatedParts.push(currentChunk);
+        }
     }
     
     return translatedParts.join(' ');
