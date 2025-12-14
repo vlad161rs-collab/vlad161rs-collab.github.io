@@ -799,9 +799,11 @@ async function migrateAllProjects() {
                     project.title[targetLang].includes('MAX ALLOWED QUERY');
                 
                 // Также проверяем, нужен ли перевод на текущий язык интерфейса
-                const needsCurrentLangTranslation = !project.title[currentLanguage] || 
-                    project.title[currentLanguage].includes('QUERY LENGTH LIMIT') || 
-                    project.title[currentLanguage].includes('MAX ALLOWED QUERY');
+                const currentTitle = project.title[currentLanguage];
+                const needsCurrentLangTranslation = !currentTitle || 
+                    currentTitle.trim() === '' ||
+                    currentTitle.includes('QUERY LENGTH LIMIT') || 
+                    currentTitle.includes('MAX ALLOWED QUERY');
                 
                 if (needsTitleTranslation) {
                     console.log(`  → Translating title (${originalTitle.length} chars) from ${sourceLang} to ${targetLang}...`);
@@ -862,9 +864,11 @@ async function migrateAllProjects() {
                     project.description[targetLang].includes('MAX ALLOWED QUERY');
                 
                 // Также проверяем, нужен ли перевод на текущий язык интерфейса
-                const needsCurrentLangDescTranslation = !project.description[currentLanguage] || 
-                    project.description[currentLanguage].includes('QUERY LENGTH LIMIT') || 
-                    project.description[currentLanguage].includes('MAX ALLOWED QUERY');
+                const currentDesc = project.description[currentLanguage];
+                const needsCurrentLangDescTranslation = !currentDesc || 
+                    currentDesc.trim() === '' ||
+                    currentDesc.includes('QUERY LENGTH LIMIT') || 
+                    currentDesc.includes('MAX ALLOWED QUERY');
                 
                 if (needsDescTranslation) {
                     console.log(`  → Translating description (${originalDesc.length} chars) from ${sourceLang} to ${targetLang}...`);
