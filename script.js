@@ -392,6 +392,11 @@ async function translateTextChunkSafe(chunk, sourceLang, targetLang, maxEncodedL
     }
     
     // Если перевод не удался, возвращаем исходный chunk
+    // ВАЖНО: Никогда не возвращаем сообщения об ошибках как текст перевода
+    if (chunk.includes('QUERY LENGTH LIMIT') || chunk.includes('MAX ALLOWED QUERY')) {
+        console.error('Chunk contains error message, returning empty to prevent error text in UI');
+        return '';
+    }
     return chunk;
 }
 
@@ -437,11 +442,16 @@ async function migrateAllProjects() {
                     console.log(`Migrating title for project ${i}: ${originalTitle.substring(0, 30)}...`);
                     const translatedTitle = await translateText(originalTitle, targetLang);
                     
+                    // Проверяем, что перевод не содержит ошибку API
+                    const cleanTranslatedTitle = (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY'))
+                        ? translatedTitle
+                        : originalTitle; // Если перевод содержит ошибку, используем исходный текст
+                    
                     if (!project.title || typeof project.title !== 'object') {
                         project.title = {};
                     }
                     project.title[sourceLang] = originalTitle;
-                    project.title[targetLang] = translatedTitle;
+                    project.title[targetLang] = cleanTranslatedTitle;
                     needsSave = true;
                 }
             }
@@ -458,11 +468,16 @@ async function migrateAllProjects() {
                     console.log(`Migrating description for project ${i}: ${originalDesc.substring(0, 30)}...`);
                     const translatedDesc = await translateText(originalDesc, targetLang);
                     
+                    // Проверяем, что перевод не содержит ошибку API
+                    const cleanTranslatedDesc = (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY'))
+                        ? translatedDesc
+                        : originalDesc; // Если перевод содержит ошибку, используем исходный текст
+                    
                     if (!project.description || typeof project.description !== 'object') {
                         project.description = {};
                     }
                     project.description[sourceLang] = originalDesc;
-                    project.description[targetLang] = translatedDesc;
+                    project.description[targetLang] = cleanTranslatedDesc;
                     needsSave = true;
                 }
             }
