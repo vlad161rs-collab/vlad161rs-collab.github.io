@@ -865,8 +865,11 @@ async function migrateAllProjects() {
                 
                 // Также проверяем, нужен ли перевод на текущий язык интерфейса
                 const currentDesc = project.description[currentLanguage];
+                // Проверяем не только наличие, но и что текст действительно на нужном языке
+                const currentDescLang = currentDesc ? detectLanguage(currentDesc) : null;
                 const needsCurrentLangDescTranslation = !currentDesc || 
                     currentDesc.trim() === '' ||
+                    currentDescLang !== currentLanguage ||
                     currentDesc.includes('QUERY LENGTH LIMIT') || 
                     currentDesc.includes('MAX ALLOWED QUERY');
                 
@@ -912,7 +915,11 @@ async function migrateAllProjects() {
                         console.warn(`  ⚠ No source text available for translating description to ${currentLanguage}`);
                     }
                 } else {
-                    console.log(`  ✓ Description already has translation in ${currentLanguage}: "${currentDesc ? currentDesc.substring(0, 50) + '...' : 'empty'}"`);
+                    if (currentDescLang !== currentLanguage) {
+                        console.warn(`  ⚠ Description in ${currentLanguage} is actually in ${currentDescLang}, but check failed`);
+                    } else {
+                        console.log(`  ✓ Description already has correct translation in ${currentLanguage}`);
+                    }
                 }
             }
         } else {
