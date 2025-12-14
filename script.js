@@ -160,6 +160,60 @@ function t(key, params = {}) {
     return text;
 }
 
+// Получить текст проекта на текущем языке
+function getProjectText(project, field) {
+    // Если проект имеет структуру с переводами
+    if (project[field] && typeof project[field] === 'object' && project[field][currentLanguage]) {
+        return project[field][currentLanguage];
+    }
+    // Если есть переводы в старом формате (title_en, title_ru)
+    if (project[`${field}_${currentLanguage}`]) {
+        return project[`${field}_${currentLanguage}`];
+    }
+    // Если есть переводы в новом формате (translations)
+    if (project.translations && project.translations[field] && project.translations[field][currentLanguage]) {
+        return project.translations[field][currentLanguage];
+    }
+    // Иначе возвращаем исходный текст (для обратной совместимости)
+    return project[field] || '';
+}
+
+// Автоматический перевод текста через API
+async function translateText(text, targetLang) {
+    if (!text || text.trim() === '') return '';
+    
+    // Определяем исходный язык
+    const sourceLang = targetLang === 'ru' ? 'en' : 'ru';
+    
+    try {
+        // Используем бесплатный API перевода (MyMemory Translation API)
+        const response = await fetch(
+            `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|${targetLang}`
+        );
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.responseData && data.responseData.translatedText) {
+                return data.responseData.translatedText;
+            }
+        }
+    } catch (error) {
+        console.error('Translation error:', error);
+    }
+    
+    // Если перевод не удался, возвращаем исходный текст
+    return text;
+}
+
+// Определить язык текста (простая эвристика)
+function detectLanguage(text) {
+    if (!text) return 'en';
+    
+    // Простая проверка на кириллицу
+    const cyrillicPattern = /[А-Яа-яЁё]/;
+    return cyrillicPattern.test(text) ? 'ru' : 'en';
+}
+
 // Переключение языка
 function setLanguage(lang) {
     if (translations[lang]) {
@@ -254,7 +308,7 @@ function updateAllTexts() {
     const enterBtn = document.querySelector('#authForm button[type="submit"]');
     if (enterBtn) enterBtn.textContent = t('enter');
     
-    // Перерисовка карточек проектов для обновления кнопок
+    // Перерисовка карточек проектов для обновления переводов
     renderProjects();
 }
 
@@ -766,11 +820,15 @@ function createProjectCard(project, index) {
     const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
     const previewImage = images[mainIndex] || images[0] || project.image;
     
+    // Получаем переводы для текущего языка
+    const projectTitle = getProjectText(project, 'title');
+    const projectDescription = getProjectText(project, 'description');
+    
     card.innerHTML = `
-        <img src="${previewImage}" alt="${project.title}" class="portfolio-item-image">
+        <img src="${previewImage}" alt="${projectTitle}" class="portfolio-item-image">
         <div class="portfolio-item-content">
-            <h3 class="portfolio-item-title">${project.title}</h3>
-            <p class="portfolio-item-description">${project.description}</p>
+            <h3 class="portfolio-item-title">${projectTitle}</h3>
+            <p class="portfolio-item-description">${projectDescription}</p>
             <div class="portfolio-item-actions">
                 <button class="btn-icon" onclick="event.stopPropagation(); viewProject(${index})">
                     👁️ ${t('view')}
@@ -810,12 +868,17 @@ function viewProject(index) {
     const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
     currentImageIndex = mainIndex >= 0 && mainIndex < images.length ? mainIndex : 0;
     
+    // Получаем переводы для текущего языка
+    const projectTitle = getProjectText(project, 'title');
+    const projectDescription = getProjectText(project, 'description');
+    const openProjectText = currentLanguage === 'ru' ? 'Открыть проект' : 'Open Project';
+    
     // Очищаем галерею и добавляем изображения
     imageGallery.innerHTML = '';
     images.forEach((imgSrc, idx) => {
         const img = document.createElement('img');
         img.src = imgSrc;
-        img.alt = `${project.title} - Image ${idx + 1}`;
+        img.alt = `${projectTitle} - ${t('imageOf')} ${idx + 1}`;
         if (idx === currentImageIndex) img.classList.add('active');
         imageGallery.appendChild(img);
     });
@@ -823,9 +886,9 @@ function viewProject(index) {
     updateGalleryControls();
     
     imageInfo.innerHTML = `
-        <h3>${project.title}</h3>
-        <p>${project.description}</p>
-        ${project.link ? `<a href="${project.link}" target="_blank" style="color: var(--primary); margin-top: 1rem; display: inline-block;">Open Project →</a>` : ''}
+        <h3>${projectTitle}</h3>
+        <p>${projectDescription}</p>
+        ${project.link ? `<a href="${project.link}" target="_blank" style="color: var(--primary); margin-top: 1rem; display: inline-block;">${openProjectText} →</a>` : ''}
     `;
     
     imageModal.classList.add('active');
@@ -1075,7 +1138,7 @@ window.removePreviewImage = function(index) {
     
     // Обновляем превью
     if (previewImagesData.length === 0) {
-        imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
+        imagePreview.innerHTML = `<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">${t('selectImages')}</label>`;
         mainImageIndex = 0;
         imagePreview.classList.remove('has-images');
         const addMoreBtn = document.getElementById('addMoreImagesBtn');
@@ -1210,7 +1273,7 @@ if (projectImages) {
         const files = Array.from(e.target.files);
         if (files.length === 0) {
             if (previewImagesData.length === 0) {
-                imagePreview.innerHTML = '<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">Выберите изображения</label>';
+                imagePreview.innerHTML = `<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">${t('selectImages')}</label>`;
                 imagePreview.classList.remove('has-images');
                 const addMoreBtn = document.getElementById('addMoreImagesBtn');
                 if (addMoreBtn) addMoreBtn.style.display = 'none';
@@ -1368,9 +1431,9 @@ if (projectForm) {
                 });
             });
             
-            Promise.all(readers).then(imageDataArray => {
+            Promise.all(readers).then(async (imageDataArray) => {
                 console.log('Images read, saving project');
-                saveProject(title, description, link, imageDataArray);
+                await saveProject(title, description, link, imageDataArray);
             }).catch(error => {
                 console.error('Error reading images:', error);
                 alert(currentLanguage === 'ru' ? 'Ошибка при чтении изображений' : 'Error reading images');
@@ -1384,7 +1447,7 @@ if (projectForm) {
     });
 }
 
-function saveProject(title, description, link, imagesData) {
+async function saveProject(title, description, link, imagesData) {
     console.log('saveProject called with:', { title, description, link, imagesCount: imagesData?.length, currentEditId });
     
     // imagesData может быть массивом или одним изображением (для обратной совместимости)
@@ -1398,10 +1461,34 @@ function saveProject(title, description, link, imagesData) {
     // Определяем главное изображение
     const mainIndex = mainImageIndex >= 0 && mainImageIndex < images.length ? mainImageIndex : 0;
     
+    // Определяем язык введенного текста
+    const inputLang = detectLanguage(title + ' ' + description);
+    const targetLang = inputLang === 'ru' ? 'en' : 'ru';
+    
+    // Автоматически переводим текст на другой язык
+    console.log(`Detected input language: ${inputLang}, translating to: ${targetLang}`);
+    showNotification(currentLanguage === 'ru' ? 'Перевожу проект...' : 'Translating project...', 'info');
+    
+    const [translatedTitle, translatedDescription] = await Promise.all([
+        translateText(title, targetLang),
+        translateText(description, targetLang)
+    ]);
+    
+    // Сохраняем проект с переводами
     const project = {
         id: currentEditId !== null ? projects[currentEditId].id : Date.now(),
-        title,
-        description,
+        // Сохраняем переводы в структуре
+        title: {
+            [inputLang]: title,
+            [targetLang]: translatedTitle
+        },
+        description: {
+            [inputLang]: description,
+            [targetLang]: translatedDescription
+        },
+        // Для обратной совместимости сохраняем также в старом формате
+        title_old: title, // Временное поле для совместимости
+        description_old: description,
         link: link || null,
         images: images, // Сохраняем массив изображений
         image: images[mainIndex], // Главное изображение для обратной совместимости
@@ -1417,7 +1504,7 @@ function saveProject(title, description, link, imagesData) {
         console.log('New project added');
     }
     
-    saveProjects();
+    await saveProjects();
     renderProjects();
     
     if (projectModal) {
@@ -1426,7 +1513,8 @@ function saveProject(title, description, link, imagesData) {
     
     resetForm();
     
-    console.log('Project saved successfully');
+    showNotification(currentLanguage === 'ru' ? 'Проект сохранен и переведен!' : 'Project saved and translated!', 'success');
+    console.log('Project saved successfully with translations');
 }
 
 function resetForm() {
