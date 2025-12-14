@@ -822,19 +822,24 @@ async function migrateAllProjects() {
                     console.log(`  ✓ Title already has translation in ${targetLang}`);
                 }
                 
-                // Если текущий язык интерфейса отличается от исходного и целевого, переводим и на него
-                if (currentLanguage !== sourceLang && currentLanguage !== targetLang && needsCurrentLangTranslation) {
+                // Всегда проверяем и переводим на текущий язык интерфейса, если перевода нет
+                if (needsCurrentLangTranslation) {
+                    // Выбираем исходный текст для перевода: приоритет исходному языку, затем целевому
                     const sourceForCurrent = project.title[sourceLang] || project.title[targetLang] || originalTitle;
-                    if (sourceForCurrent && sourceForCurrent !== originalTitle) {
-                        console.log(`  → Translating title to current language ${currentLanguage}...`);
+                    if (sourceForCurrent && sourceForCurrent.trim() !== '') {
+                        console.log(`  → Translating title to current language ${currentLanguage} from ${sourceLang === currentLanguage ? targetLang : sourceLang}...`);
                         const translatedTitle = await translateText(sourceForCurrent, currentLanguage);
                         if (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY')) {
                             project.title[currentLanguage] = translatedTitle;
                             projectNeedsUpdate = true;
                             translatedCount++;
                             console.log(`  ✓ Title translated successfully to ${currentLanguage}`);
+                        } else {
+                            console.warn(`  ✗ Translation to ${currentLanguage} failed for title`);
                         }
                     }
+                } else {
+                    console.log(`  ✓ Title already has translation in ${currentLanguage}`);
                 }
             }
             
@@ -880,19 +885,24 @@ async function migrateAllProjects() {
                     console.log(`  ✓ Description already has translation in ${targetLang}`);
                 }
                 
-                // Если текущий язык интерфейса отличается от исходного и целевого, переводим и на него
-                if (currentLanguage !== sourceLang && currentLanguage !== targetLang && needsCurrentLangDescTranslation) {
+                // Всегда проверяем и переводим на текущий язык интерфейса, если перевода нет
+                if (needsCurrentLangDescTranslation) {
+                    // Выбираем исходный текст для перевода: приоритет исходному языку, затем целевому
                     const sourceForCurrent = project.description[sourceLang] || project.description[targetLang] || originalDesc;
-                    if (sourceForCurrent && sourceForCurrent !== originalDesc) {
-                        console.log(`  → Translating description to current language ${currentLanguage}...`);
+                    if (sourceForCurrent && sourceForCurrent.trim() !== '') {
+                        console.log(`  → Translating description to current language ${currentLanguage} from ${sourceLang === currentLanguage ? targetLang : sourceLang}...`);
                         const translatedDesc = await translateText(sourceForCurrent, currentLanguage);
                         if (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY')) {
                             project.description[currentLanguage] = translatedDesc;
                             projectNeedsUpdate = true;
                             translatedCount++;
                             console.log(`  ✓ Description translated successfully to ${currentLanguage}`);
+                        } else {
+                            console.warn(`  ✗ Translation to ${currentLanguage} failed for description`);
                         }
                     }
+                } else {
+                    console.log(`  ✓ Description already has translation in ${currentLanguage}`);
                 }
             }
         } else {
