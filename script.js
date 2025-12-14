@@ -894,7 +894,11 @@ async function migrateAllProjects() {
                     // Выбираем исходный текст для перевода: приоритет исходному языку, затем целевому
                     const sourceForCurrent = project.description[sourceLang] || project.description[targetLang] || originalDesc;
                     if (sourceForCurrent && sourceForCurrent.trim() !== '') {
-                        console.log(`  → Translating description to current language ${currentLanguage} from ${sourceLang === currentLanguage ? targetLang : sourceLang}...`);
+                        // Определяем, с какого языка переводить
+                        const fromLang = sourceForCurrent === project.description[sourceLang] ? sourceLang : 
+                                       sourceForCurrent === project.description[targetLang] ? targetLang : 
+                                       detectLanguage(sourceForCurrent);
+                        console.log(`  → Translating description to current language ${currentLanguage} from ${fromLang} (${sourceForCurrent.length} chars)...`);
                         const translatedDesc = await translateText(sourceForCurrent, currentLanguage);
                         if (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY')) {
                             project.description[currentLanguage] = translatedDesc;
@@ -904,9 +908,11 @@ async function migrateAllProjects() {
                         } else {
                             console.warn(`  ✗ Translation to ${currentLanguage} failed for description`);
                         }
+                    } else {
+                        console.warn(`  ⚠ No source text available for translating description to ${currentLanguage}`);
                     }
                 } else {
-                    console.log(`  ✓ Description already has translation in ${currentLanguage}`);
+                    console.log(`  ✓ Description already has translation in ${currentLanguage}: "${currentDesc ? currentDesc.substring(0, 50) + '...' : 'empty'}"`);
                 }
             }
         } else {
