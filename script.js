@@ -181,8 +181,14 @@ function getProjectText(project, field) {
                 // Если перевода на текущий язык нет, запускаем миграцию в фоне
                 if (!project[field][currentLanguage] && !project._migrationQueued) {
                     project._migrationQueued = true;
-                    migrateProjectAsync(project);
+                    console.log(`Missing translation for ${field} in ${currentLanguage}, starting migration for project...`);
+                    migrateProjectAsync(project).then(() => {
+                        // После перевода обновляем карточки
+                        renderProjects();
+                    });
                 }
+                // Временно возвращаем текст на другом языке, но это не идеально
+                // Лучше показать индикатор загрузки или пустую строку
                 return text; // Возвращаем текст на другом языке как временный fallback
             }
         }
@@ -778,6 +784,11 @@ async function migrateAllProjects() {
                     project.title[targetLang].includes('QUERY LENGTH LIMIT') || 
                     project.title[targetLang].includes('MAX ALLOWED QUERY');
                 
+                // Также проверяем, нужен ли перевод на текущий язык интерфейса
+                const needsCurrentLangTranslation = !project.title[currentLanguage] || 
+                    project.title[currentLanguage].includes('QUERY LENGTH LIMIT') || 
+                    project.title[currentLanguage].includes('MAX ALLOWED QUERY');
+                
                 if (needsTitleTranslation) {
                     console.log(`  → Translating title (${originalTitle.length} chars) from ${sourceLang} to ${targetLang}...`);
                     const translatedTitle = await translateText(originalTitle, targetLang);
@@ -787,7 +798,7 @@ async function migrateAllProjects() {
                         project.title[targetLang] = translatedTitle;
                         projectNeedsUpdate = true;
                         translatedCount++;
-                        console.log(`  ✓ Title translated successfully`);
+                        console.log(`  ✓ Title translated successfully to ${targetLang}`);
                     } else {
                         console.warn(`  ✗ Translation failed for title, keeping original`);
                         project.title[targetLang] = originalTitle; // Используем исходный текст как fallback
@@ -795,6 +806,21 @@ async function migrateAllProjects() {
                     }
                 } else {
                     console.log(`  ✓ Title already has translation in ${targetLang}`);
+                }
+                
+                // Если текущий язык интерфейса отличается от исходного и целевого, переводим и на него
+                if (currentLanguage !== sourceLang && currentLanguage !== targetLang && needsCurrentLangTranslation) {
+                    const sourceForCurrent = project.title[sourceLang] || project.title[targetLang] || originalTitle;
+                    if (sourceForCurrent && sourceForCurrent !== originalTitle) {
+                        console.log(`  → Translating title to current language ${currentLanguage}...`);
+                        const translatedTitle = await translateText(sourceForCurrent, currentLanguage);
+                        if (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY')) {
+                            project.title[currentLanguage] = translatedTitle;
+                            projectNeedsUpdate = true;
+                            translatedCount++;
+                            console.log(`  ✓ Title translated successfully to ${currentLanguage}`);
+                        }
+                    }
                 }
             }
             
@@ -816,6 +842,11 @@ async function migrateAllProjects() {
                     project.description[targetLang].includes('QUERY LENGTH LIMIT') || 
                     project.description[targetLang].includes('MAX ALLOWED QUERY');
                 
+                // Также проверяем, нужен ли перевод на текущий язык интерфейса
+                const needsCurrentLangDescTranslation = !project.description[currentLanguage] || 
+                    project.description[currentLanguage].includes('QUERY LENGTH LIMIT') || 
+                    project.description[currentLanguage].includes('MAX ALLOWED QUERY');
+                
                 if (needsDescTranslation) {
                     console.log(`  → Translating description (${originalDesc.length} chars) from ${sourceLang} to ${targetLang}...`);
                     const translatedDesc = await translateText(originalDesc, targetLang);
@@ -825,7 +856,7 @@ async function migrateAllProjects() {
                         project.description[targetLang] = translatedDesc;
                         projectNeedsUpdate = true;
                         translatedCount++;
-                        console.log(`  ✓ Description translated successfully`);
+                        console.log(`  ✓ Description translated successfully to ${targetLang}`);
                     } else {
                         console.warn(`  ✗ Translation failed for description, keeping original`);
                         project.description[targetLang] = originalDesc; // Используем исходный текст как fallback
@@ -833,6 +864,21 @@ async function migrateAllProjects() {
                     }
                 } else {
                     console.log(`  ✓ Description already has translation in ${targetLang}`);
+                }
+                
+                // Если текущий язык интерфейса отличается от исходного и целевого, переводим и на него
+                if (currentLanguage !== sourceLang && currentLanguage !== targetLang && needsCurrentLangDescTranslation) {
+                    const sourceForCurrent = project.description[sourceLang] || project.description[targetLang] || originalDesc;
+                    if (sourceForCurrent && sourceForCurrent !== originalDesc) {
+                        console.log(`  → Translating description to current language ${currentLanguage}...`);
+                        const translatedDesc = await translateText(sourceForCurrent, currentLanguage);
+                        if (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY')) {
+                            project.description[currentLanguage] = translatedDesc;
+                            projectNeedsUpdate = true;
+                            translatedCount++;
+                            console.log(`  ✓ Description translated successfully to ${currentLanguage}`);
+                        }
+                    }
                 }
             }
         } else {
