@@ -934,11 +934,18 @@ function editProject(index) {
     }
     
     const project = projects[index];
+    if (!project) return;
+    
     currentEditId = index;
     
-    modalTitle.textContent = 'Редактировать проект';
-    document.getElementById('projectTitle').value = project.title;
-    document.getElementById('projectDescription').value = project.description;
+    modalTitle.textContent = t('editProjectTitle');
+    
+    // Получаем текст на текущем языке для редактирования
+    const projectTitle = getProjectText(project, 'title');
+    const projectDescription = getProjectText(project, 'description');
+    
+    document.getElementById('projectTitle').value = projectTitle || '';
+    document.getElementById('projectDescription').value = projectDescription || '';
     document.getElementById('projectLink').value = project.link || '';
     
     // Показываем текущие изображения
@@ -1465,6 +1472,18 @@ async function saveProject(title, description, link, imagesData) {
     const inputLang = detectLanguage(title + ' ' + description);
     const targetLang = inputLang === 'ru' ? 'en' : 'ru';
     
+    // Если редактируем существующий проект, сохраняем существующие переводы
+    let existingTranslations = {};
+    if (currentEditId !== null) {
+        const existingProject = projects[currentEditId];
+        if (existingProject.title && typeof existingProject.title === 'object') {
+            existingTranslations.title = { ...existingProject.title };
+        }
+        if (existingProject.description && typeof existingProject.description === 'object') {
+            existingTranslations.description = { ...existingProject.description };
+        }
+    }
+    
     // Автоматически переводим текст на другой язык
     console.log(`Detected input language: ${inputLang}, translating to: ${targetLang}`);
     showNotification(currentLanguage === 'ru' ? 'Перевожу проект...' : 'Translating project...', 'info');
@@ -1477,18 +1496,17 @@ async function saveProject(title, description, link, imagesData) {
     // Сохраняем проект с переводами
     const project = {
         id: currentEditId !== null ? projects[currentEditId].id : Date.now(),
-        // Сохраняем переводы в структуре
+        // Сохраняем переводы в структуре (обновляем только текущий язык, сохраняем другой)
         title: {
+            ...(existingTranslations.title || {}),
             [inputLang]: title,
             [targetLang]: translatedTitle
         },
         description: {
+            ...(existingTranslations.description || {}),
             [inputLang]: description,
             [targetLang]: translatedDescription
         },
-        // Для обратной совместимости сохраняем также в старом формате
-        title_old: title, // Временное поле для совместимости
-        description_old: description,
         link: link || null,
         images: images, // Сохраняем массив изображений
         image: images[mainIndex], // Главное изображение для обратной совместимости
