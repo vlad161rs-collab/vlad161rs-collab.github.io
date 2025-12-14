@@ -546,74 +546,91 @@ async function translateLongText(text, sourceLang, targetLang, maxTextLength, ma
 }
 
 // Безопасный перевод части текста с гарантией длины URL < 500
-async function translateTextChunkSafe(chunk, sourceLang, targetLang, maxEncodedLength) {
+async function translateTextChunkSafe(chunk, sourceLang, targetLang, maxEncodedLength, apiType = 'mymemory') {
     if (!chunk || chunk.trim() === '') return '';
     
-    // СТРОГАЯ ПРОВЕРКА: проверяем длину URL перед каждым запросом
-    const encodedText = encodeURIComponent(chunk);
-    const fullUrl = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${sourceLang}|${targetLang}`;
-    
-    // Если URL все еще слишком длинный, разбиваем рекурсивно
-    if (fullUrl.length > 500 || encodedText.length > maxEncodedLength) {
-        console.warn(`URL too long (${fullUrl.length} chars), splitting chunk: "${chunk.substring(0, 30)}..."`);
-        
-        // Разбиваем пополам
-        const midPoint = Math.floor(chunk.length / 2);
-        const part1 = chunk.substring(0, midPoint).trim();
-        const part2 = chunk.substring(midPoint).trim();
-        
-        if (part1 && part2) {
-            const [translated1, translated2] = await Promise.all([
-                translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength),
-                translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength)
-            ]);
-            return (translated1 + ' ' + translated2).trim();
-        } else if (part1) {
-            return await translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength);
-        } else if (part2) {
-            return await translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength);
-        }
-        return chunk;
+    // ВАЖНО: Никогда не переводим сообщения об ошибках
+    if (chunk.includes('QUERY LENGTH LIMIT') || chunk.includes('MAX ALLOWED QUERY')) {
+        console.error('Chunk contains error message, skipping translation');
+        return '';
     }
     
-    // URL безопасной длины - выполняем запрос
-    try {
-        const response = await fetch(fullUrl);
+    if (apiType === 'mymemory') {
+        // СТРОГАЯ ПРОВЕРКА: проверяем длину URL перед каждым запросом
+        const encodedText = encodeURIComponent(chunk);
+        const fullUrl = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${sourceLang}|${targetLang}`;
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data.responseData && data.responseData.translatedText) {
-                return data.responseData.translatedText;
+        // Если URL все еще слишком длинный, разбиваем рекурсивно
+        if (fullUrl.length > 500 || encodedText.length > maxEncodedLength) {
+            console.warn(`URL too long (${fullUrl.length} chars), splitting chunk: "${chunk.substring(0, 30)}..."`);
+            
+            // Разбиваем пополам
+            const midPoint = Math.floor(chunk.length / 2);
+            const part1 = chunk.substring(0, midPoint).trim();
+            const part2 = chunk.substring(midPoint).trim();
+            
+            if (part1 && part2) {
+                const [translated1, translated2] = await Promise.all([
+                    translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength, apiType),
+                    translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength, apiType)
+                ]);
+                const result = (translated1 + ' ' + translated2).trim();
+                // Проверяем, что результат не является ошибкой
+                if (result && !result.includes('QUERY LENGTH LIMIT') && !result.includes('MAX ALLOWED QUERY')) {
+                    return result;
+                }
+            } else if (part1) {
+                return await translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength, apiType);
+            } else if (part2) {
+                return await translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength, apiType);
             }
-        } else {
-            const errorText = await response.text();
-            if (errorText.includes('QUERY LENGTH LIMIT')) {
-                console.error('API still reports length limit, splitting further...');
-                // Еще больше разбиваем
-                const midPoint = Math.floor(chunk.length / 2);
-                const part1 = chunk.substring(0, midPoint).trim();
-                const part2 = chunk.substring(midPoint).trim();
-                if (part1 && part2) {
-                    const [translated1, translated2] = await Promise.all([
-                        translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength),
-                        translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength)
-                    ]);
-                    return (translated1 + ' ' + translated2).trim();
+            return chunk;
+        }
+        
+        // URL безопасной длины - выполняем запрос
+        try {
+            const response = await fetch(fullUrl);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.responseData && data.responseData.translatedText) {
+                    const translated = data.responseData.translatedText;
+                    // Проверяем, что результат не является ошибкой
+                    if (translated && !translated.includes('QUERY LENGTH LIMIT') && !translated.includes('MAX ALLOWED QUERY')) {
+                        return translated;
+                    }
                 }
             } else {
-                console.error('Translation API error:', response.status, errorText.substring(0, 100));
+                const errorText = await response.text();
+                if (errorText.includes('QUERY LENGTH LIMIT') || errorText.includes('MAX ALLOWED QUERY')) {
+                    console.error('API reports length limit, splitting further...');
+                    // Еще больше разбиваем
+                    const midPoint = Math.floor(chunk.length / 2);
+                    const part1 = chunk.substring(0, midPoint).trim();
+                    const part2 = chunk.substring(midPoint).trim();
+                    if (part1 && part2) {
+                        const [translated1, translated2] = await Promise.all([
+                            translateTextChunkSafe(part1, sourceLang, targetLang, maxEncodedLength, apiType),
+                            translateTextChunkSafe(part2, sourceLang, targetLang, maxEncodedLength, apiType)
+                        ]);
+                        const result = (translated1 + ' ' + translated2).trim();
+                        if (result && !result.includes('QUERY LENGTH LIMIT') && !result.includes('MAX ALLOWED QUERY')) {
+                            return result;
+                        }
+                    }
+                    // Если даже после разбиения получили ошибку, возвращаем исходный текст
+                    console.warn('Translation failed after splitting, returning original text');
+                    return chunk;
+                } else {
+                    console.error('Translation API error:', response.status, errorText.substring(0, 100));
+                }
             }
+        } catch (error) {
+            console.error('Translation chunk error:', error);
         }
-    } catch (error) {
-        console.error('Translation chunk error:', error);
     }
     
     // Если перевод не удался, возвращаем исходный chunk
-    // ВАЖНО: Никогда не возвращаем сообщения об ошибках как текст перевода
-    if (chunk.includes('QUERY LENGTH LIMIT') || chunk.includes('MAX ALLOWED QUERY')) {
-        console.error('Chunk contains error message, returning empty to prevent error text in UI');
-        return '';
-    }
     return chunk;
 }
 
