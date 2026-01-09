@@ -9,6 +9,7 @@
     --text-secondary: #cbd5e1;
     --border: rgba(148, 163, 184, 0.2);
     --shadow: rgba(0, 0, 0, 0.3);
+    --header-offset: 0px;
     --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
@@ -62,8 +63,11 @@ body {
     backdrop-filter: blur(10px);
     background: rgba(15, 23, 42, 0.8);
     border-bottom: 1px solid var(--border);
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
     z-index: 100;
 }
 
@@ -409,7 +413,7 @@ body {
 
 /* Main */
 .main {
-    padding: 3rem 0;
+    padding: calc(3rem + var(--header-offset)) 0 3rem;
     min-height: calc(100vh - 100px);
 }
 
@@ -1090,4 +1094,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--primary-dark);
 }
-

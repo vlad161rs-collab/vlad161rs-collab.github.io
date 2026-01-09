@@ -2411,10 +2411,34 @@ function setupLanguageButton() {
     }
 }
 
+function setupHeaderOffset() {
+    const header = document.querySelector('.header');
+    if (!header) {
+        return;
+    }
+
+    const setOffset = () => {
+        document.documentElement.style.setProperty('--header-offset', `${header.offsetHeight}px`);
+    };
+
+    setOffset();
+
+    if (typeof ResizeObserver !== 'undefined') {
+        const observer = new ResizeObserver(() => {
+            setOffset();
+        });
+        observer.observe(header);
+    } else {
+        window.addEventListener('resize', setOffset);
+    }
+}
+
+
 // Инициализация
 // Ждем загрузки DOM
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', async () => {
+        setupHeaderOffset();
         setupLanguageButton();
         updateLanguageUI();
         checkAuth();
@@ -2425,6 +2449,7 @@ if (document.readyState === 'loading') {
     });
 } else {
     // DOM уже загружен
+    setupHeaderOffset();
     setupLanguageButton();
     updateLanguageUI();
     checkAuth();
