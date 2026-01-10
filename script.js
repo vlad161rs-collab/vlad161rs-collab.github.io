@@ -2208,8 +2208,6 @@ if (projectForm) {
         const title = document.getElementById('projectTitle')?.value?.trim() || '';
         const description = document.getElementById('projectDescription')?.value?.trim() || '';
         const link = document.getElementById('projectLink')?.value?.trim() || '';
-        const imageFiles = projectImages ? Array.from(projectImages.files) : [];
-        
         // Валидация полей
         if (!title) {
             alert(t('titleLabel') + ' ' + (currentLanguage === 'ru' ? 'обязательно для заполнения' : 'is required'));
@@ -2223,64 +2221,14 @@ if (projectForm) {
             return;
         }
         
-        // Проверка для нового проекта
-        if (imageFiles.length === 0 && currentEditId === null) {
+        if (previewImagesData.length === 0) {
             alert(currentLanguage === 'ru' ? 'Пожалуйста, выберите хотя бы одно изображение' : 'Please select at least one image');
             return;
         }
         
-        // Если редактируем и не выбрано новое изображение, используем изображения из превью
-        if (currentEditId !== null && imageFiles.length === 0) {
-            // Используем изображения из previewImagesData (уже загружены в превью)
-            if (previewImagesData && previewImagesData.length > 0) {
-                console.log('Saving with preview images:', previewImagesData.length);
-                saveProject(title, description, link, previewImagesData);
-                return;
-            } else {
-                // Если превью пусто, используем старые изображения из проекта
-                const project = projects[currentEditId];
-                if (project) {
-                    const existingImages = Array.isArray(project.images) && project.images.length > 0 
-                        ? project.images 
-                        : (project.image ? [project.image] : []);
-                    console.log('Saving with existing images from project:', existingImages.length);
-                    if (existingImages.length > 0) {
-                        saveProject(title, description, link, existingImages);
-                        return;
-                    }
-                } else {
-                    alert(currentLanguage === 'ru' ? 'Проект не найден' : 'Project not found');
-                    return;
-                }
-            }
-        }
-        
-        // Если выбраны новые изображения
-        if (imageFiles.length > 0) {
-            // Читаем все выбранные файлы
-            console.log('Reading new image files:', imageFiles.length);
-            const readers = imageFiles.map(file => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (event) => resolve(event.target.result);
-                    reader.onerror = (error) => reject(error);
-                    reader.readAsDataURL(file);
-                });
-            });
-            
-            Promise.all(readers).then(async (imageDataArray) => {
-                console.log('Images read, saving project');
-                await saveProject(title, description, link, imageDataArray);
-            }).catch(error => {
-                console.error('Error reading images:', error);
-                alert(currentLanguage === 'ru' ? 'Ошибка при чтении изображений' : 'Error reading images');
-            });
-            return;
-        }
-        
-        // Если дошли сюда, значит что-то пошло не так
-        alert(currentLanguage === 'ru' ? 'Ошибка: не удалось определить изображения для сохранения' : 'Error: Could not determine images to save');
-        console.error('Failed to save: no images found');
+        // Используем изображения из превью (в том числе и сохранённые ранее)
+        await saveProject(title, description, link, previewImagesData);
+        return;
     });
 }
 
@@ -2483,4 +2431,3 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
-
