@@ -2199,7 +2199,7 @@ projectForm.addEventListener('click', (e) => {
 
 // Обработка формы
 if (projectForm) {
-    projectForm.addEventListener('submit', async (e) => {
+    projectForm.addEventListener('submit', (e) => {
         e.preventDefault();
         e.stopPropagation();
         
