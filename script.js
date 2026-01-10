@@ -1265,6 +1265,14 @@ function setGitHubToken(token) {
 
 // Загрузка проектов из JSON файла
 async function loadProjects() {
+    const localProjects = getLocalProjectsSafe();
+    const hasLocalProjects = localProjects.length > 0;
+
+    if (hasLocalProjects) {
+        projects = localProjects;
+        renderProjects();
+    }
+
     try {
         const response = await fetch('data/projects.json?t=' + Date.now()); // Добавляем timestamp для избежания кэша
         if (response.ok) {
@@ -1277,50 +1285,42 @@ async function loadProjects() {
                 let mergedProjects = serverProjects;
                 let hasLocalChanges = false;
 
-                const saved = localStorage.getItem('portfolioProjects');
-                if (saved) {
-                    try {
-                        const localProjects = JSON.parse(saved);
-                        if (Array.isArray(localProjects) && localProjects.length > 0) {
-                            const serverMap = new Map();
-                            serverProjects.forEach(project => {
-                                if (project && project.id !== undefined && project.id !== null) {
-                                    serverMap.set(project.id, project);
-                                }
-                            });
-                            const localMap = new Map();
-                            localProjects.forEach(project => {
-                                if (project && project.id !== undefined && project.id !== null) {
-                                    localMap.set(project.id, project);
-                                }
-                            });
-
-                            mergedProjects = serverProjects.map(project => {
-                                if (!project || project.id === undefined || project.id === null) {
-                                    return project;
-                                }
-                                const localProject = localMap.get(project.id);
-                                if (localProject && getProjectTimestamp(localProject) > getProjectTimestamp(project)) {
-                                    hasLocalChanges = true;
-                                    return localProject;
-                                }
-                                return project;
-                            });
-
-                            localProjects.forEach(project => {
-                                if (!project) return;
-                                if (project.id === undefined || project.id === null || !serverMap.has(project.id)) {
-                                    mergedProjects.push(project);
-                                    hasLocalChanges = true;
-                                }
-                            });
-
-                            if (hasLocalChanges) {
-                                console.log('Merged local changes into server projects.');
-                            }
+                if (hasLocalProjects) {
+                    const serverMap = new Map();
+                    serverProjects.forEach(project => {
+                        if (project && project.id !== undefined && project.id !== null) {
+                            serverMap.set(project.id, project);
                         }
-                    } catch (e) {
-                        console.error('Error parsing localStorage:', e);
+                    });
+                    const localMap = new Map();
+                    localProjects.forEach(project => {
+                        if (project && project.id !== undefined && project.id !== null) {
+                            localMap.set(project.id, project);
+                        }
+                    });
+
+                    mergedProjects = serverProjects.map(project => {
+                        if (!project || project.id === undefined || project.id === null) {
+                            return project;
+                        }
+                        const localProject = localMap.get(project.id);
+                        if (localProject && getProjectTimestamp(localProject) > getProjectTimestamp(project)) {
+                            hasLocalChanges = true;
+                            return localProject;
+                        }
+                        return project;
+                    });
+
+                    localProjects.forEach(project => {
+                        if (!project) return;
+                        if (project.id === undefined || project.id === null || !serverMap.has(project.id)) {
+                            mergedProjects.push(project);
+                            hasLocalChanges = true;
+                        }
+                    });
+
+                    if (hasLocalChanges) {
+                        console.log('Merged local changes into server projects.');
                     }
                 }
 
@@ -1333,33 +1333,11 @@ async function loadProjects() {
                 }
             } else {
                 // Файл пустой, проверяем localStorage
-                const saved = localStorage.getItem('portfolioProjects');
-                if (saved) {
-                    try {
-                        const localProjects = JSON.parse(saved);
-                        if (Array.isArray(localProjects) && localProjects.length > 0) {
-                            projects = localProjects;
-                            console.log(`Loaded ${projects.length} project(s) from localStorage:`, projects.map(p => {
-                                if (typeof p.title === 'string') return p.title;
-                                return p.title?.en || p.title?.ru || 'Unknown';
-                            }));
-                            renderProjects();
-                            
-                            // Мигрируем старые проекты (асинхронно, без блокировки UI)
-                            setTimeout(() => {
-                                migrateOldProjects();
-                            }, 1000);
-                            
-                            // Предлагаем миграцию на сервер
-                            offerMigration();
-                        } else {
-                            projects = [];
-                            renderProjects();
-                        }
-                    } catch (e) {
-                        projects = [];
-                        renderProjects();
-                    }
+                if (hasLocalProjects) {
+                    setTimeout(() => {
+                        migrateOldProjects();
+                    }, 1000);
+                    offerMigration();
                 } else {
                     projects = [];
                     renderProjects();
@@ -1367,12 +1345,16 @@ async function loadProjects() {
             }
         } else {
             console.warn('Failed to load projects.json, checking localStorage');
-            loadFromLocalStorage();
+            if (!hasLocalProjects) {
+                loadFromLocalStorage();
+            }
         }
     } catch (error) {
         console.error('Error loading projects:', error);
         // Fallback на localStorage если файл не найден
-        loadFromLocalStorage();
+        if (!hasLocalProjects) {
+            loadFromLocalStorage();
+        }
     }
 }
 
@@ -1393,6 +1375,18 @@ function loadFromLocalStorage() {
     } else {
         projects = [];
         renderProjects();
+    }
+}
+
+function getLocalProjectsSafe() {
+    const saved = localStorage.getItem('portfolioProjects');
+    if (!saved) return [];
+    try {
+        const localProjects = JSON.parse(saved);
+        return Array.isArray(localProjects) ? localProjects : [];
+    } catch (e) {
+        console.error('Error parsing localStorage:', e);
+        return [];
     }
 }
 
