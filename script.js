@@ -2106,7 +2106,7 @@ imageModal.addEventListener('click', (e) => {
 
 // Предпросмотр изображений
 if (projectImages) {
-    projectImages.addEventListener('change', (e) => {
+    projectImages.addEventListener('change', async (e) => {
         const files = Array.from(e.target.files);
         if (files.length === 0) {
             if (previewImagesData.length === 0) {
@@ -2118,29 +2118,41 @@ if (projectImages) {
             }
             return;
         }
-        
-        // Если это первая загрузка, заменяем все
-        // Если уже есть изображения, добавляем новые
+
         const isFirstLoad = previewImagesData.length === 0;
-        
+
         const readers = files.map(file => {
-            return new Promise((resolve) => {
+            return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = (event) => resolve(event.target.result);
+                reader.onerror = (error) => reject(error);
                 reader.readAsDataURL(file);
             });
         });
-        
-        Promise.all(readers).then(results => {
-            if (isFirstLoad) {
-                previewImagesData = results;
-                mainImageIndex = 0;
-            } else {
-                // Добавляем новые изображения к существующим
-                previewImagesData = [...previewImagesData, ...results];
-            }
-            displayImagePreviews(previewImagesData, mainImageIndex);
-        });
+
+        const settled = await Promise.allSettled(readers);
+        const successful = settled.filter(item => item.status === 'fulfilled').map(item => item.value);
+        const failed = settled.filter(item => item.status === 'rejected');
+
+        if (successful.length === 0) {
+            console.error('All image reads failed', failed);
+            alert(currentLanguage === 'ru' ? 'Ошибка при чтении изображений' : 'Error reading images');
+            return;
+        }
+
+        if (isFirstLoad) {
+            previewImagesData = successful;
+            mainImageIndex = 0;
+        } else {
+            previewImagesData = [...previewImagesData, ...successful];
+        }
+
+        if (failed.length > 0) {
+            console.warn('Some images failed to read', failed);
+            showNotification(currentLanguage === 'ru' ? 'Некоторые изображения не удалось прочитать' : 'Some images could not be read', 'error');
+        }
+
+        displayImagePreviews(previewImagesData, mainImageIndex);
     });
 }
 
