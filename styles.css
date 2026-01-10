@@ -63,7 +63,7 @@ body {
     backdrop-filter: blur(10px);
     background: rgba(15, 23, 42, 0.8);
     border-bottom: 1px solid var(--border);
-    position: fixed !important;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -424,6 +424,12 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
     gap: 2rem;
     margin-top: 2rem;
+}
+
+.portfolio-grid[data-prerendered="true"] .portfolio-item {
+    opacity: 1;
+    animation: none;
+    transform: none;
 }
 
 .portfolio-item {
@@ -1024,11 +1030,9 @@ body {
     }
 
     .header {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 1000;
+        position: static !important;
+        transform: none;
+        will-change: auto;
     }
 
     .header .container {
