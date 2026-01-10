@@ -272,6 +272,42 @@ function getProjectTimestamp(project) {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function getProjectsSignature(projectList) {
+    if (!Array.isArray(projectList) || projectList.length === 0) return '';
+    const normalized = projectList
+        .filter(project => project && project.id !== undefined && project.id !== null)
+        .map(project => {
+            const title = project.title || '';
+            const description = project.description || '';
+            const titleEn = typeof title === 'object' ? (title.en || '').length : 0;
+            const titleRu = typeof title === 'object' ? (title.ru || '').length : 0;
+            const titleText = typeof title === 'string' ? title.length : 0;
+            const descEn = typeof description === 'object' ? (description.en || '').length : 0;
+            const descRu = typeof description === 'object' ? (description.ru || '').length : 0;
+            const descText = typeof description === 'string' ? description.length : 0;
+            const imageLengths = Array.isArray(project.images)
+                ? project.images.map(img => (img ? img.length : 0)).join(',')
+                : (project.image ? project.image.length : 0);
+
+            return {
+                id: project.id,
+                updatedAt: project.updatedAt || project.date || '',
+                titleEn,
+                titleRu,
+                titleText,
+                descEn,
+                descRu,
+                descText,
+                imageLengths,
+                mainImageIndex: project.mainImageIndex ?? 0,
+                link: project.link || ''
+            };
+        })
+        .sort((a, b) => (a.id > b.id ? 1 : a.id < b.id ? -1 : 0));
+
+    return JSON.stringify(normalized);
+}
+
 // Асинхронная миграция проекта (перевод старых проектов)
 async function migrateProjectAsync(project) {
     // Проверяем, нужна ли миграция
@@ -1265,13 +1301,20 @@ function setGitHubToken(token) {
 
 // Загрузка проектов из JSON файла
 async function loadProjects() {
+    const embeddedProjects = getEmbeddedProjectsSafe();
     const localProjects = getLocalProjectsSafe();
     const hasLocalProjects = localProjects.length > 0;
+    const hasEmbeddedProjects = embeddedProjects.length > 0;
 
     if (hasLocalProjects) {
         projects = localProjects;
         renderProjects();
+    } else if (hasEmbeddedProjects) {
+        projects = embeddedProjects;
+        renderProjects();
     }
+
+    const initialSignature = getProjectsSignature(projects);
 
     try {
         const response = await fetch('data/projects.json?t=' + Date.now()); // Добавляем timestamp для избежания кэша
@@ -1324,9 +1367,15 @@ async function loadProjects() {
                     }
                 }
 
-                projects = mergedProjects;
-                console.log('Projects from server:', projects.map(p => p.title));
-                renderProjects();
+                const mergedSignature = getProjectsSignature(mergedProjects);
+                if (mergedSignature !== initialSignature) {
+                    projects = mergedProjects;
+                    console.log('Projects from server:', projects.map(p => p.title));
+                    renderProjects();
+                } else {
+                    projects = mergedProjects;
+                    console.log('Projects from server are identical to initial render.');
+                }
 
                 if (hasLocalChanges) {
                     offerMigration();
@@ -1338,21 +1387,21 @@ async function loadProjects() {
                         migrateOldProjects();
                     }, 1000);
                     offerMigration();
-                } else {
+                } else if (!hasEmbeddedProjects) {
                     projects = [];
                     renderProjects();
                 }
             }
         } else {
             console.warn('Failed to load projects.json, checking localStorage');
-            if (!hasLocalProjects) {
+            if (!hasLocalProjects && !hasEmbeddedProjects) {
                 loadFromLocalStorage();
             }
         }
     } catch (error) {
         console.error('Error loading projects:', error);
         // Fallback на localStorage если файл не найден
-        if (!hasLocalProjects) {
+        if (!hasLocalProjects && !hasEmbeddedProjects) {
             loadFromLocalStorage();
         }
     }
@@ -1386,6 +1435,18 @@ function getLocalProjectsSafe() {
         return Array.isArray(localProjects) ? localProjects : [];
     } catch (e) {
         console.error('Error parsing localStorage:', e);
+        return [];
+    }
+}
+
+function getEmbeddedProjectsSafe() {
+    const embedded = document.getElementById('embeddedProjects');
+    if (!embedded || !embedded.textContent) return [];
+    try {
+        const data = JSON.parse(embedded.textContent);
+        return Array.isArray(data) ? data : [];
+    } catch (e) {
+        console.error('Error parsing embedded projects:', e);
         return [];
     }
 }
