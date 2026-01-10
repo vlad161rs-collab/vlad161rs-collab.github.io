@@ -19,6 +19,8 @@ function getDefaultLanguage() {
 
 let currentLanguage = getDefaultLanguage(); // 'en' или 'ru'
 
+const PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop stop-color='%23666eea' offset='0'/><stop stop-color='%23764ba2' offset='1'/></linearGradient></defs><rect width='800' height='600' fill='url(%23g)'/></svg>";
+
 // Переводы
 const translations = {
     en: {
@@ -1244,8 +1246,16 @@ function updateAllTexts() {
     const enterBtn = document.querySelector('#authForm button[type="submit"]');
     if (enterBtn) enterBtn.textContent = t('enter');
     
-    // Перерисовка карточек проектов для обновления переводов
-    renderProjects();
+    const hasPreRendered = portfolioGrid?.dataset?.prerendered === 'true';
+    const cardCountMatches = portfolioGrid
+        ? portfolioGrid.querySelectorAll('.portfolio-item').length === projects.length
+        : false;
+    if (hasPreRendered && projects.length > 0 && cardCountMatches) {
+        updateProjectCardsText();
+        hydrateProjectCards();
+    } else {
+        renderProjects();
+    }
 }
 
 // Пароль администратора (можно изменить)
@@ -1305,13 +1315,33 @@ async function loadProjects() {
     const localProjects = getLocalProjectsSafe();
     const hasLocalProjects = localProjects.length > 0;
     const hasEmbeddedProjects = embeddedProjects.length > 0;
+    const hasPreRendered = portfolioGrid?.dataset?.prerendered === 'true';
+    const usingEmbedded = !hasLocalProjects && hasEmbeddedProjects;
 
     if (hasLocalProjects) {
         projects = localProjects;
-        renderProjects();
+        const cardCountMatches = portfolioGrid
+            ? portfolioGrid.querySelectorAll('.portfolio-item').length === projects.length
+            : false;
+        if (hasPreRendered && cardCountMatches && projects.length > 0) {
+            emptyState.classList.add('hidden');
+            updateProjectCardsText();
+            hydrateProjectCards();
+        } else {
+            renderProjects();
+        }
     } else if (hasEmbeddedProjects) {
         projects = embeddedProjects;
-        renderProjects();
+        const cardCountMatches = portfolioGrid
+            ? portfolioGrid.querySelectorAll('.portfolio-item').length === projects.length
+            : false;
+        if (hasPreRendered && cardCountMatches && projects.length > 0) {
+            emptyState.classList.add('hidden');
+            updateProjectCardsText();
+            hydrateProjectCards();
+        } else {
+            renderProjects();
+        }
     }
 
     const initialSignature = getProjectsSignature(projects);
@@ -1371,7 +1401,15 @@ async function loadProjects() {
                 if (mergedSignature !== initialSignature) {
                     projects = mergedProjects;
                     console.log('Projects from server:', projects.map(p => p.title));
-                    renderProjects();
+                    const cardCountMatches = portfolioGrid
+                        ? portfolioGrid.querySelectorAll('.portfolio-item').length === projects.length
+                        : false;
+                    if (hasPreRendered && cardCountMatches && projects.length > 0) {
+                        updateProjectCardsText();
+                        hydrateProjectCards();
+                    } else {
+                        renderProjects();
+                    }
                 } else {
                     projects = mergedProjects;
                     console.log('Projects from server are identical to initial render.');
@@ -1789,6 +1827,7 @@ function showNotification(message, type = 'info') {
 // Рендеринг проектов
 function renderProjects() {
     portfolioGrid.innerHTML = '';
+    portfolioGrid.dataset.prerendered = 'false';
     
     if (projects.length === 0) {
         emptyState.classList.remove('hidden');
@@ -1800,6 +1839,66 @@ function renderProjects() {
     projects.forEach((project, index) => {
         const projectCard = createProjectCard(project, index);
         portfolioGrid.appendChild(projectCard);
+    });
+}
+
+function hydrateProjectCards() {
+    if (!portfolioGrid) return;
+    const cards = portfolioGrid.querySelectorAll('.portfolio-item');
+    cards.forEach((card) => {
+        if (card.dataset.bound === '1') return;
+        const index = Number(card.dataset.index);
+        if (!Number.isFinite(index)) return;
+
+        card.dataset.bound = '1';
+        card.addEventListener('click', (e) => {
+            if (e.target.closest('.portfolio-item-actions') || e.target.closest('.btn-icon')) {
+                return;
+            }
+            viewProject(index);
+        });
+
+        const viewBtn = card.querySelector('[data-action="view"]');
+        if (viewBtn) {
+            viewBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                viewProject(index);
+            });
+        }
+    });
+}
+
+function updateProjectCardsText() {
+    if (!portfolioGrid) return;
+    const cards = portfolioGrid.querySelectorAll('.portfolio-item');
+    cards.forEach((card) => {
+        const index = Number(card.dataset.index);
+        if (!Number.isFinite(index)) return;
+        const project = projects[index];
+        if (!project) return;
+        const title = getProjectText(project, 'title');
+        const description = getProjectText(project, 'description');
+
+        const titleEl = card.querySelector('.portfolio-item-title');
+        const descEl = card.querySelector('.portfolio-item-description');
+        if (titleEl) titleEl.textContent = title;
+        if (descEl) descEl.textContent = description;
+
+        const imgEl = card.querySelector('img.portfolio-item-image');
+        if (imgEl) {
+            const images = Array.isArray(project.images) && project.images.length > 0
+                ? project.images
+                : (project.image ? [project.image] : []);
+            const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
+            const previewImage = images[mainIndex] || images[0] || project.image || PLACEHOLDER_IMAGE;
+            imgEl.src = previewImage;
+            imgEl.alt = title;
+        }
+
+        const viewBtn = card.querySelector('[data-action="view"]');
+        if (viewBtn) {
+            viewBtn.textContent = `👁️ ${t('view')}`;
+        }
     });
 }
 
@@ -1825,14 +1924,14 @@ function createProjectCard(project, index) {
     
     // Определяем главное изображение
     const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
-    const previewImage = images[mainIndex] || images[0] || project.image;
+    const previewImage = images[mainIndex] || images[0] || project.image || PLACEHOLDER_IMAGE;
     
     // Получаем переводы для текущего языка
     const projectTitle = getProjectText(project, 'title');
     const projectDescription = getProjectText(project, 'description');
     
     card.innerHTML = `
-        <img src="${previewImage}" alt="${projectTitle}" class="portfolio-item-image">
+        <img src="${previewImage}" alt="${projectTitle}" class="portfolio-item-image" loading="lazy" decoding="async">
         <div class="portfolio-item-content">
             <h3 class="portfolio-item-title">${projectTitle}</h3>
             <p class="portfolio-item-description">${projectDescription}</p>
@@ -2686,66 +2785,20 @@ function setupHeaderOffset() {
         return;
     }
 
-    header.style.position = 'fixed';
-    header.style.top = '0';
-    header.style.left = '0';
-    header.style.right = '0';
-    header.style.width = '100%';
-    header.style.zIndex = '1000';
-    header.style.transform = 'translateZ(0)';
-
     const setOffset = () => {
-        document.documentElement.style.setProperty('--header-offset', `${header.offsetHeight}px`);
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        const offset = isMobile ? 0 : header.offsetHeight;
+        document.documentElement.style.setProperty('--header-offset', `${offset}px`);
     };
 
     setOffset();
 
-    const enablePinnedFallback = () => {
-        if (header.dataset.pinnedFallback === '1') {
-            return;
-        }
-        header.dataset.pinnedFallback = '1';
-        header.style.position = 'absolute';
-
-        let ticking = false;
-        const updatePosition = () => {
-            header.style.top = `${window.scrollY}px`;
-            ticking = false;
-        };
-
-        updatePosition();
-
-        const onScroll = () => {
-            if (ticking) return;
-            ticking = true;
-            requestAnimationFrame(updatePosition);
-        };
-
-        window.addEventListener('scroll', onScroll, { passive: true });
-        window.addEventListener('resize', updatePosition);
-    };
-
-    const checkPinned = () => {
-        if (header.dataset.pinnedFallback === '1') {
-            return;
-        }
-        const top = header.getBoundingClientRect().top;
-        if (Math.abs(top) > 2) {
-            enablePinnedFallback();
-        }
-    };
-
-    window.addEventListener('scroll', checkPinned, { passive: true });
-    window.addEventListener('touchmove', checkPinned, { passive: true });
-
     if (typeof ResizeObserver !== 'undefined') {
-        const observer = new ResizeObserver(() => {
-            setOffset();
-        });
+        const observer = new ResizeObserver(setOffset);
         observer.observe(header);
-    } else {
-        window.addEventListener('resize', setOffset);
     }
+
+    window.addEventListener('resize', setOffset);
 }
 
 
