@@ -265,6 +265,13 @@ function getProjectText(project, field) {
     return '';
 }
 
+function getProjectTimestamp(project) {
+    if (!project) return 0;
+    const value = project.updatedAt || project.date || 0;
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
 // Асинхронная миграция проекта (перевод старых проектов)
 async function migrateProjectAsync(project) {
     // Проверяем, нужна ли миграция
@@ -915,8 +922,10 @@ async function migrateAllProjects() {
                 
                 // Также проверяем, нужен ли перевод на текущий язык интерфейса
                 const currentTitle = project.title[currentLanguage];
+                const currentTitleLang = currentTitle ? detectLanguage(currentTitle) : null;
                 const needsCurrentLangTranslation = !currentTitle || 
                     currentTitle.trim() === '' ||
+                    currentTitleLang !== currentLanguage ||
                     currentTitle.includes('QUERY LENGTH LIMIT') || 
                     currentTitle.includes('MAX ALLOWED QUERY');
                 
@@ -1208,30 +1217,63 @@ async function loadProjects() {
             
             // Если файл пустой, проверяем localStorage
             if (Array.isArray(data) && data.length > 0) {
-                projects = data;
-                console.log('Projects from server:', projects.map(p => p.title));
-                renderProjects();
-                
-                // Проверяем, есть ли в localStorage больше проектов
+                let serverProjects = data;
+                let mergedProjects = serverProjects;
+                let hasLocalChanges = false;
+
                 const saved = localStorage.getItem('portfolioProjects');
                 if (saved) {
                     try {
                         const localProjects = JSON.parse(saved);
-                        if (Array.isArray(localProjects) && localProjects.length > data.length) {
-                            console.log(`Found more projects in localStorage (${localProjects.length}) than on server (${data.length}). Merging...`);
-                            // Объединяем проекты (приоритет у серверных, добавляем только новые из localStorage)
-                            const serverIds = new Set(data.map(p => p.id));
-                            const newProjects = localProjects.filter(p => !serverIds.has(p.id));
-                            if (newProjects.length > 0) {
-                                projects = [...data, ...newProjects];
-                                console.log(`Merged ${newProjects.length} new project(s) from localStorage`);
-                                renderProjects();
-                                offerMigration();
+                        if (Array.isArray(localProjects) && localProjects.length > 0) {
+                            const serverMap = new Map();
+                            serverProjects.forEach(project => {
+                                if (project && project.id !== undefined && project.id !== null) {
+                                    serverMap.set(project.id, project);
+                                }
+                            });
+                            const localMap = new Map();
+                            localProjects.forEach(project => {
+                                if (project && project.id !== undefined && project.id !== null) {
+                                    localMap.set(project.id, project);
+                                }
+                            });
+
+                            mergedProjects = serverProjects.map(project => {
+                                if (!project || project.id === undefined || project.id === null) {
+                                    return project;
+                                }
+                                const localProject = localMap.get(project.id);
+                                if (localProject && getProjectTimestamp(localProject) > getProjectTimestamp(project)) {
+                                    hasLocalChanges = true;
+                                    return localProject;
+                                }
+                                return project;
+                            });
+
+                            localProjects.forEach(project => {
+                                if (!project) return;
+                                if (project.id === undefined || project.id === null || !serverMap.has(project.id)) {
+                                    mergedProjects.push(project);
+                                    hasLocalChanges = true;
+                                }
+                            });
+
+                            if (hasLocalChanges) {
+                                console.log('Merged local changes into server projects.');
                             }
                         }
                     } catch (e) {
                         console.error('Error parsing localStorage:', e);
                     }
+                }
+
+                projects = mergedProjects;
+                console.log('Projects from server:', projects.map(p => p.title));
+                renderProjects();
+
+                if (hasLocalChanges) {
+                    offerMigration();
                 }
             } else {
                 // Файл пустой, проверяем localStorage
@@ -1781,6 +1823,10 @@ function editProject(index) {
     if (!project) return;
     
     currentEditId = index;
+
+    if (projectImages) {
+        projectImages.value = '';
+    }
     
     modalTitle.textContent = t('editProjectTitle');
     
@@ -2377,6 +2423,7 @@ async function saveProject(title, description, link, imagesData) {
     }
     
     // Сохраняем проект с переводами
+    const nowIso = new Date().toISOString();
     const project = {
         id: currentEditId !== null ? projects[currentEditId].id : Date.now(),
         // Сохраняем переводы в структуре (обновляем только текущий язык, сохраняем другой)
@@ -2386,7 +2433,8 @@ async function saveProject(title, description, link, imagesData) {
         images: images, // Сохраняем массив изображений
         image: images[mainIndex], // Главное изображение для обратной совместимости
         mainImageIndex: mainIndex, // Сохраняем индекс главного изображения
-        date: currentEditId !== null ? projects[currentEditId].date : new Date().toISOString()
+        date: currentEditId !== null ? (projects[currentEditId].date || nowIso) : nowIso,
+        updatedAt: nowIso
     };
     
     if (currentEditId !== null) {
