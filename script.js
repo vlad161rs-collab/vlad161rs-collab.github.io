@@ -414,6 +414,26 @@ async function translateText(text, targetLang) {
     return text;
 }
 
+const TRANSLATION_ERROR_SNIPPETS = [
+    'QUERY LENGTH LIMIT',
+    'MAX ALLOWED QUERY',
+    'MYMEMORY WARNING',
+    'YOU USED ALL AVAILABLE FREE TRANSLATIONS'
+];
+
+function isTranslationUsable(sourceText, translatedText, targetLang) {
+    if (!translatedText || !translatedText.trim()) return false;
+    const trimmed = translatedText.trim();
+    if (TRANSLATION_ERROR_SNIPPETS.some(snippet => trimmed.includes(snippet))) return false;
+    const sourceTrimmed = (sourceText || '').trim();
+    if (sourceTrimmed && trimmed === sourceTrimmed) return false;
+    if (/[A-Za-zА-Яа-яЁё]/.test(trimmed)) {
+        const detected = detectLanguage(trimmed);
+        if (detected !== targetLang) return false;
+    }
+    return true;
+}
+
 // Перевод через MyMemory API с правильным разбиением
 async function translateWithMyMemory(text, sourceLang, targetLang) {
     const BASE_URL_LENGTH = 58;
@@ -904,16 +924,13 @@ async function migrateAllProjects() {
                     console.log(`  → Translating title (${originalTitle.length} chars) from ${sourceLang} to ${targetLang}...`);
                     const translatedTitle = await translateText(originalTitle, targetLang);
                     
-                    // Проверяем, что перевод не содержит ошибку
-                    if (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY')) {
+                    if (isTranslationUsable(originalTitle, translatedTitle, targetLang)) {
                         project.title[targetLang] = translatedTitle;
                         projectNeedsUpdate = true;
                         translatedCount++;
                         console.log(`  ✓ Title translated successfully to ${targetLang}`);
                     } else {
-                        console.warn(`  ✗ Translation failed for title, keeping original`);
-                        project.title[targetLang] = originalTitle; // Используем исходный текст как fallback
-                        projectNeedsUpdate = true;
+                        console.warn(`  ✗ Translation failed for title, keeping existing`);
                     }
                 } else {
                     console.log(`  ✓ Title already has translation in ${targetLang}`);
@@ -932,7 +949,7 @@ async function migrateAllProjects() {
                             console.log(`  ⚠ Current title in ${currentLanguage} is actually in ${currentTitleLang}, will retranslate`);
                         }
                         const translatedTitle = await translateText(sourceForCurrent, currentLanguage);
-                        if (translatedTitle && !translatedTitle.includes('QUERY LENGTH LIMIT') && !translatedTitle.includes('MAX ALLOWED QUERY')) {
+                        if (isTranslationUsable(sourceForCurrent, translatedTitle, currentLanguage)) {
                             project.title[currentLanguage] = translatedTitle;
                             projectNeedsUpdate = true;
                             translatedCount++;
@@ -978,16 +995,13 @@ async function migrateAllProjects() {
                     console.log(`  → Translating description (${originalDesc.length} chars) from ${sourceLang} to ${targetLang}...`);
                     const translatedDesc = await translateText(originalDesc, targetLang);
                     
-                    // Проверяем, что перевод не содержит ошибку
-                    if (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY')) {
+                    if (isTranslationUsable(originalDesc, translatedDesc, targetLang)) {
                         project.description[targetLang] = translatedDesc;
                         projectNeedsUpdate = true;
                         translatedCount++;
                         console.log(`  ✓ Description translated successfully to ${targetLang}`);
                     } else {
-                        console.warn(`  ✗ Translation failed for description, keeping original`);
-                        project.description[targetLang] = originalDesc; // Используем исходный текст как fallback
-                        projectNeedsUpdate = true;
+                        console.warn(`  ✗ Translation failed for description, keeping existing`);
                     }
                 } else {
                     console.log(`  ✓ Description already has translation in ${targetLang}`);
@@ -1004,7 +1018,7 @@ async function migrateAllProjects() {
                                        detectLanguage(sourceForCurrent);
                         console.log(`  → Translating description to current language ${currentLanguage} from ${fromLang} (${sourceForCurrent.length} chars)...`);
                         const translatedDesc = await translateText(sourceForCurrent, currentLanguage);
-                        if (translatedDesc && !translatedDesc.includes('QUERY LENGTH LIMIT') && !translatedDesc.includes('MAX ALLOWED QUERY')) {
+                        if (isTranslationUsable(sourceForCurrent, translatedDesc, currentLanguage)) {
                             project.description[currentLanguage] = translatedDesc;
                             projectNeedsUpdate = true;
                             translatedCount++;
@@ -2104,6 +2118,23 @@ imageModal.addEventListener('click', (e) => {
     }
 });
 
+async function readFilesAsDataUrls(files) {
+    const readers = files.map(file => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target.result);
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+        });
+    });
+
+    const settled = await Promise.allSettled(readers);
+    return {
+        successful: settled.filter(item => item.status === 'fulfilled').map(item => item.value),
+        failed: settled.filter(item => item.status === 'rejected')
+    };
+}
+
 // Предпросмотр изображений
 if (projectImages) {
     projectImages.addEventListener('change', async (e) => {
@@ -2121,18 +2152,7 @@ if (projectImages) {
 
         const isFirstLoad = previewImagesData.length === 0;
 
-        const readers = files.map(file => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (event) => resolve(event.target.result);
-                reader.onerror = (error) => reject(error);
-                reader.readAsDataURL(file);
-            });
-        });
-
-        const settled = await Promise.allSettled(readers);
-        const successful = settled.filter(item => item.status === 'fulfilled').map(item => item.value);
-        const failed = settled.filter(item => item.status === 'rejected');
+        const { successful, failed } = await readFilesAsDataUrls(files);
 
         if (successful.length === 0) {
             console.error('All image reads failed', failed);
@@ -2211,7 +2231,7 @@ projectForm.addEventListener('click', (e) => {
 
 // Обработка формы
 if (projectForm) {
-    projectForm.addEventListener('submit', (e) => {
+    projectForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         e.stopPropagation();
         
@@ -2269,24 +2289,26 @@ if (projectForm) {
         
         // Если выбраны новые изображения
         if (imageFiles.length > 0) {
-            // Читаем все выбранные файлы
+            if (previewImagesData && previewImagesData.length > 0) {
+                console.log('Saving with preview images:', previewImagesData.length);
+                await saveProject(title, description, link, previewImagesData);
+                return;
+            }
+
             console.log('Reading new image files:', imageFiles.length);
-            const readers = imageFiles.map(file => {
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (event) => resolve(event.target.result);
-                    reader.onerror = (error) => reject(error);
-                    reader.readAsDataURL(file);
-                });
-            });
-            
-            Promise.all(readers).then(async (imageDataArray) => {
-                console.log('Images read, saving project');
-                await saveProject(title, description, link, imageDataArray);
-            }).catch(error => {
-                console.error('Error reading images:', error);
+            const { successful, failed } = await readFilesAsDataUrls(imageFiles);
+            if (successful.length === 0) {
+                console.error('All image reads failed', failed);
                 alert(currentLanguage === 'ru' ? 'Ошибка при чтении изображений' : 'Error reading images');
-            });
+                return;
+            }
+            if (failed.length > 0) {
+                console.warn('Some images failed to read', failed);
+                showNotification(currentLanguage === 'ru' ? 'Некоторые изображения не удалось прочитать' : 'Some images could not be read', 'error');
+            }
+
+            console.log('Images read, saving project');
+            await saveProject(title, description, link, successful);
             return;
         }
         
@@ -2334,21 +2356,32 @@ async function saveProject(title, description, link, imagesData) {
         translateText(title, targetLang),
         translateText(description, targetLang)
     ]);
+
+    const titleTranslatedOk = isTranslationUsable(title, translatedTitle, targetLang);
+    const descriptionTranslatedOk = isTranslationUsable(description, translatedDescription, targetLang);
+
+    const titleTranslations = {
+        ...(existingTranslations.title || {}),
+        [inputLang]: title
+    };
+    if (titleTranslatedOk) {
+        titleTranslations[targetLang] = translatedTitle;
+    }
+
+    const descriptionTranslations = {
+        ...(existingTranslations.description || {}),
+        [inputLang]: description
+    };
+    if (descriptionTranslatedOk) {
+        descriptionTranslations[targetLang] = translatedDescription;
+    }
     
     // Сохраняем проект с переводами
     const project = {
         id: currentEditId !== null ? projects[currentEditId].id : Date.now(),
         // Сохраняем переводы в структуре (обновляем только текущий язык, сохраняем другой)
-        title: {
-            ...(existingTranslations.title || {}),
-            [inputLang]: title,
-            [targetLang]: translatedTitle
-        },
-        description: {
-            ...(existingTranslations.description || {}),
-            [inputLang]: description,
-            [targetLang]: translatedDescription
-        },
+        title: titleTranslations,
+        description: descriptionTranslations,
         link: link || null,
         images: images, // Сохраняем массив изображений
         image: images[mainIndex], // Главное изображение для обратной совместимости
@@ -2373,7 +2406,17 @@ async function saveProject(title, description, link, imagesData) {
     
     resetForm();
     
-    showNotification(currentLanguage === 'ru' ? 'Проект сохранен и переведен!' : 'Project saved and translated!', 'success');
+    const translationSuccess = titleTranslatedOk && descriptionTranslatedOk;
+    if (!translationSuccess) {
+        showNotification(
+            currentLanguage === 'ru'
+                ? 'Проект сохранен, перевод недоступен. Попробуйте позже.'
+                : 'Project saved, translation unavailable. Try again later.',
+            'error'
+        );
+    } else {
+        showNotification(currentLanguage === 'ru' ? 'Проект сохранен и переведен!' : 'Project saved and translated!', 'success');
+    }
     console.log('Project saved successfully with translations');
 }
 

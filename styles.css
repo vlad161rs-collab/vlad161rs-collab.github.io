@@ -1021,6 +1021,14 @@ body {
         padding: 0 1rem;
     }
 
+    .header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 1000;
+    }
+
     .header .container {
         flex-direction: column;
         gap: 1rem;
