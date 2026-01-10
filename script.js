@@ -1049,8 +1049,64 @@ async function migrateAllProjects() {
         } else {
             console.log(`  ⚠ No original text found for this project`);
         }
+
+        if (project.translationPending) {
+            const pendingTitle = project.translationPending.title;
+            if (pendingTitle && pendingTitle.from && pendingTitle.to) {
+                const sourceText = (project.title && typeof project.title === 'object' && project.title[pendingTitle.from]) ||
+                    originalTitle ||
+                    '';
+                if (sourceText.trim() !== '') {
+                    console.log(`  → Retrying title translation from ${pendingTitle.from} to ${pendingTitle.to}...`);
+                    const translatedTitle = await translateText(sourceText, pendingTitle.to);
+                    if (isTranslationUsable(sourceText, translatedTitle, pendingTitle.to)) {
+                        if (!project.title || typeof project.title !== 'object') {
+                            project.title = {};
+                        }
+                        project.title[pendingTitle.to] = translatedTitle;
+                        delete project.translationPending.title;
+                        projectNeedsUpdate = true;
+                        translatedCount++;
+                        console.log(`  ✓ Pending title translated to ${pendingTitle.to}`);
+                    } else {
+                        console.warn(`  ✗ Pending title translation failed`);
+                    }
+                }
+            }
+
+            const pendingDescription = project.translationPending.description;
+            if (pendingDescription && pendingDescription.from && pendingDescription.to) {
+                const sourceText = (project.description && typeof project.description === 'object' && project.description[pendingDescription.from]) ||
+                    originalDesc ||
+                    '';
+                if (sourceText.trim() !== '') {
+                    console.log(`  → Retrying description translation from ${pendingDescription.from} to ${pendingDescription.to}...`);
+                    const translatedDesc = await translateText(sourceText, pendingDescription.to);
+                    if (isTranslationUsable(sourceText, translatedDesc, pendingDescription.to)) {
+                        if (!project.description || typeof project.description !== 'object') {
+                            project.description = {};
+                        }
+                        project.description[pendingDescription.to] = translatedDesc;
+                        delete project.translationPending.description;
+                        projectNeedsUpdate = true;
+                        translatedCount++;
+                        console.log(`  ✓ Pending description translated to ${pendingDescription.to}`);
+                    } else {
+                        console.warn(`  ✗ Pending description translation failed`);
+                    }
+                }
+            }
+
+            if (project.translationPending &&
+                !project.translationPending.title &&
+                !project.translationPending.description) {
+                delete project.translationPending;
+                projectNeedsUpdate = true;
+            }
+        }
         
         if (projectNeedsUpdate) {
+            project.updatedAt = new Date().toISOString();
             needsSave = true;
         }
     }
@@ -1425,8 +1481,18 @@ async function saveProjects() {
     console.log(`Final projects array before save: ${projects.length} project(s):`, projects.map(p => p.title));
     
     // Также сохраняем в localStorage как резервную копию
-    localStorage.setItem('portfolioProjects', JSON.stringify(projects));
-    console.log('Projects saved to localStorage:', projects.length);
+    try {
+        localStorage.setItem('portfolioProjects', JSON.stringify(projects));
+        console.log('Projects saved to localStorage:', projects.length);
+    } catch (error) {
+        console.error('Failed to save projects to localStorage:', error);
+        showNotification(
+            currentLanguage === 'ru'
+                ? 'Локальное хранилище переполнено. Данные сохранены только в текущей сессии.'
+                : 'Local storage is full. Data saved only for this session.',
+            'error'
+        );
+    }
     
     const token = getGitHubToken();
     if (!token) {
@@ -2157,17 +2223,61 @@ imageModal.addEventListener('click', (e) => {
     }
 });
 
-async function readFilesAsDataUrls(files) {
-    const readers = files.map(file => {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = (event) => resolve(event.target.result);
-            reader.onerror = (error) => reject(error);
-            reader.readAsDataURL(file);
-        });
-    });
+const IMAGE_MAX_DIMENSION = 1600;
+const IMAGE_JPEG_QUALITY = 0.86;
 
-    const settled = await Promise.allSettled(readers);
+function readFileWithFileReader(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => resolve(event.target.result);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+    });
+}
+
+function readFileWithCanvas(file) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        const objectUrl = URL.createObjectURL(file);
+
+        image.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            const maxSide = Math.max(image.width, image.height);
+            const scale = maxSide > IMAGE_MAX_DIMENSION ? IMAGE_MAX_DIMENSION / maxSide : 1;
+            const targetWidth = Math.max(1, Math.round(image.width * scale));
+            const targetHeight = Math.max(1, Math.round(image.height * scale));
+
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                reject(new Error('Canvas not supported'));
+                return;
+            }
+
+            ctx.drawImage(image, 0, 0, targetWidth, targetHeight);
+            const outputType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+            const outputQuality = outputType === 'image/jpeg' ? IMAGE_JPEG_QUALITY : 0.92;
+            resolve(canvas.toDataURL(outputType, outputQuality));
+        };
+
+        image.onerror = (error) => {
+            URL.revokeObjectURL(objectUrl);
+            reject(error);
+        };
+
+        image.src = objectUrl;
+    });
+}
+
+function readFileAsDataUrl(file) {
+    return readFileWithFileReader(file).catch(() => readFileWithCanvas(file));
+}
+
+async function readFilesAsDataUrls(files) {
+    const reads = files.map(file => readFileAsDataUrl(file));
+    const settled = await Promise.allSettled(reads);
     return {
         successful: settled.filter(item => item.status === 'fulfilled').map(item => item.value),
         failed: settled.filter(item => item.status === 'rejected')
@@ -2389,6 +2499,38 @@ async function saveProject(title, description, link, imagesData) {
     if (descriptionTranslatedOk) {
         descriptionTranslations[targetLang] = translatedDescription;
     }
+
+    const pendingTranslations = {};
+    if (currentEditId !== null) {
+        const existingProject = projects[currentEditId];
+        if (existingProject && existingProject.translationPending) {
+            if (existingProject.translationPending.title) {
+                pendingTranslations.title = { ...existingProject.translationPending.title };
+            }
+            if (existingProject.translationPending.description) {
+                pendingTranslations.description = { ...existingProject.translationPending.description };
+            }
+        }
+    }
+
+    if (!titleTranslatedOk) {
+        pendingTranslations.title = { from: inputLang, to: targetLang };
+    } else if (pendingTranslations.title && pendingTranslations.title.to === targetLang) {
+        delete pendingTranslations.title;
+    }
+
+    if (!descriptionTranslatedOk) {
+        pendingTranslations.description = { from: inputLang, to: targetLang };
+    } else if (pendingTranslations.description && pendingTranslations.description.to === targetLang) {
+        delete pendingTranslations.description;
+    }
+
+    if (pendingTranslations.title && pendingTranslations.title.to === inputLang) {
+        delete pendingTranslations.title;
+    }
+    if (pendingTranslations.description && pendingTranslations.description.to === inputLang) {
+        delete pendingTranslations.description;
+    }
     
     // Сохраняем проект с переводами
     const nowIso = new Date().toISOString();
@@ -2402,7 +2544,8 @@ async function saveProject(title, description, link, imagesData) {
         image: images[mainIndex], // Главное изображение для обратной совместимости
         mainImageIndex: mainIndex, // Сохраняем индекс главного изображения
         date: currentEditId !== null ? (projects[currentEditId].date || nowIso) : nowIso,
-        updatedAt: nowIso
+        updatedAt: nowIso,
+        ...(Object.keys(pendingTranslations).length > 0 ? { translationPending: pendingTranslations } : {})
     };
     
     if (currentEditId !== null) {
@@ -2501,6 +2644,44 @@ function setupHeaderOffset() {
     };
 
     setOffset();
+
+    const enablePinnedFallback = () => {
+        if (header.dataset.pinnedFallback === '1') {
+            return;
+        }
+        header.dataset.pinnedFallback = '1';
+        header.style.position = 'absolute';
+
+        let ticking = false;
+        const updatePosition = () => {
+            header.style.top = `${window.scrollY}px`;
+            ticking = false;
+        };
+
+        updatePosition();
+
+        const onScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(updatePosition);
+        };
+
+        window.addEventListener('scroll', onScroll, { passive: true });
+        window.addEventListener('resize', updatePosition);
+    };
+
+    const checkPinned = () => {
+        if (header.dataset.pinnedFallback === '1') {
+            return;
+        }
+        const top = header.getBoundingClientRect().top;
+        if (Math.abs(top) > 2) {
+            enablePinnedFallback();
+        }
+    };
+
+    window.addEventListener('scroll', checkPinned, { passive: true });
+    window.addEventListener('touchmove', checkPinned, { passive: true });
 
     if (typeof ResizeObserver !== 'undefined') {
         const observer = new ResizeObserver(() => {
