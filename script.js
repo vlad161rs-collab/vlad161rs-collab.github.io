@@ -2023,16 +2023,6 @@ window.removePreviewImage = function(index) {
         mainImageIndex--;
     }
     
-    // Удаляем соответствующий файл из input (создаем новый DataTransfer)
-    const dt = new DataTransfer();
-    const files = Array.from(projectImages.files);
-    files.forEach((file, i) => {
-        if (i !== index) {
-            dt.items.add(file);
-        }
-    });
-    projectImages.files = dt.files;
-    
     // Обновляем превью
     if (previewImagesData.length === 0) {
         imagePreview.innerHTML = `<label for="projectImages" class="upload-placeholder" id="uploadPlaceholder">${t('selectImages')}</label>`;
@@ -2042,6 +2032,9 @@ window.removePreviewImage = function(index) {
         if (addMoreBtn) addMoreBtn.style.display = 'none';
         // Восстанавливаем обработчик клика на placeholder
         setupUploadPlaceholder();
+        if (projectImages) {
+            projectImages.value = '';
+        }
     } else {
         displayImagePreviews(previewImagesData, mainImageIndex);
     }
@@ -2287,6 +2280,7 @@ if (projectForm) {
         const description = document.getElementById('projectDescription')?.value?.trim() || '';
         const link = document.getElementById('projectLink')?.value?.trim() || '';
         const imageFiles = projectImages ? Array.from(projectImages.files) : [];
+        const hasPreviewImages = Array.isArray(previewImagesData) && previewImagesData.length > 0;
         
         // Валидация полей
         if (!title) {
@@ -2302,45 +2296,19 @@ if (projectForm) {
         }
         
         // Проверка для нового проекта
-        if (imageFiles.length === 0 && currentEditId === null) {
+        if (!hasPreviewImages && imageFiles.length === 0 && currentEditId === null) {
             alert(currentLanguage === 'ru' ? 'Пожалуйста, выберите хотя бы одно изображение' : 'Please select at least one image');
             return;
         }
         
-        // Если редактируем и не выбрано новое изображение, используем изображения из превью
-        if (currentEditId !== null && imageFiles.length === 0) {
-            // Используем изображения из previewImagesData (уже загружены в превью)
-            if (previewImagesData && previewImagesData.length > 0) {
-                console.log('Saving with preview images:', previewImagesData.length);
-                saveProject(title, description, link, previewImagesData);
-                return;
-            } else {
-                // Если превью пусто, используем старые изображения из проекта
-                const project = projects[currentEditId];
-                if (project) {
-                    const existingImages = Array.isArray(project.images) && project.images.length > 0 
-                        ? project.images 
-                        : (project.image ? [project.image] : []);
-                    console.log('Saving with existing images from project:', existingImages.length);
-                    if (existingImages.length > 0) {
-                        saveProject(title, description, link, existingImages);
-                        return;
-                    }
-                } else {
-                    alert(currentLanguage === 'ru' ? 'Проект не найден' : 'Project not found');
-                    return;
-                }
-            }
+        if (hasPreviewImages) {
+            console.log('Saving with preview images:', previewImagesData.length);
+            await saveProject(title, description, link, previewImagesData);
+            return;
         }
         
         // Если выбраны новые изображения
         if (imageFiles.length > 0) {
-            if (previewImagesData && previewImagesData.length > 0) {
-                console.log('Saving with preview images:', previewImagesData.length);
-                await saveProject(title, description, link, previewImagesData);
-                return;
-            }
-
             console.log('Reading new image files:', imageFiles.length);
             const { successful, failed } = await readFilesAsDataUrls(imageFiles);
             if (successful.length === 0) {
@@ -2519,6 +2487,14 @@ function setupHeaderOffset() {
     if (!header) {
         return;
     }
+
+    header.style.position = 'fixed';
+    header.style.top = '0';
+    header.style.left = '0';
+    header.style.right = '0';
+    header.style.width = '100%';
+    header.style.zIndex = '1000';
+    header.style.transform = 'translateZ(0)';
 
     const setOffset = () => {
         document.documentElement.style.setProperty('--header-offset', `${header.offsetHeight}px`);
