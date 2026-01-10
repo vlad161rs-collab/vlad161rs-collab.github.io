@@ -63,12 +63,14 @@ body {
     backdrop-filter: blur(10px);
     background: rgba(15, 23, 42, 0.8);
     border-bottom: 1px solid var(--border);
-    position: fixed;
+    position: fixed !important;
     top: 0;
     left: 0;
     right: 0;
     width: 100%;
     z-index: 100;
+    transform: translateZ(0);
+    will-change: transform;
 }
 
 .header .container {
