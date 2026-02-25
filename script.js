@@ -2182,6 +2182,8 @@ function updateProjectCardsText() {
 function createProjectCard(project, index) {
     const card = document.createElement('div');
     card.className = 'portfolio-item';
+    card.dataset.index = String(index);
+    card.dataset.bound = '1';
     card.style.animationDelay = `${index * 0.1}s`;
     
     const adminActions = isAuthenticated ? `
