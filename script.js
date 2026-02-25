@@ -1050,7 +1050,9 @@ async function setLanguage(lang) {
         // Мигрируем все проекты без переводов
         await migrateAllProjects();
         
-        updateAllTexts({ skipProjectCards: true });
+        // On language switch we must refresh project cards too; skipping cards
+        // here leaves them in the previous language when no migration/save runs.
+        updateAllTexts();
     }
 }
 
