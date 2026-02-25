@@ -139,5 +139,32 @@
     "mainImageIndex": 0,
     "date": "2026-02-25T16:03:33.052Z",
     "updatedAt": "2026-02-25T16:03:33.052Z"
+  },
+  {
+    "id": 1772035625302,
+    "title": {
+      "en": "CutList Syntix",
+      "ru": "Синтикс списка вырезов"
+    },
+    "description": {
+      "en": "CutList Syntix is an offline Android app for sheet cutting optimization and CNC nesting CAM. I built the full workflow end-to-end: projects (materials, sheets, parts/contours), deterministic layout generation, workshop-friendly execution, and production exports. The app supports saw/guillotine cut planning with PDF cut plans and a step-by-step Workshop mode, plus CNC nesting from SVG contours with a CAM pipeline (tool offsets, holes→outer order, lead-in/out, Z step-downs, smart tabs, and validation) and GRBL G-code (.nc) export. The product is offline-first (no accounts/cloud) and uses local persistence for all data and run history.",
+      "ru": "CutList Syntix - это автономное приложение для Android для оптимизации резки листов и вложенности С ЧПУ. Я построил полный рабочий процесс от начала до конца: проекты (материалы, листы, детали/контуры), детерминированные создание макета, удобное для мастерских исполнение и экспорт продукции. Приложение поддерживает планирование резки пилой/гильотиной с планами резки в формате PDF и пошаговым режимом семинара, плюс вложение ЧПУ из контуров SVG с КУЛАЧКОВЫМ трубопроводом (смещения инструмента,→ внешний порядок отверстий, ввод/вывод, Z-понижение, интеллектуальные вкладки и валидация) и G-код GRBL (. nc) экспорт. Продукт работает в автономном режиме (без учетных записей/облака) и использует локальную персистенцию для всех данных и запуска историю его родины."
+    },
+    "link": null,
+    "images": [
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-1.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-2.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-3.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-4.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-5.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-6.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-7.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-8.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-9.png"
+    ],
+    "image": "data/images/1772035625302/2026-02-25t16-07-05-302z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-02-25T16:07:05.302Z",
+    "updatedAt": "2026-02-25T16:07:05.302Z"
   }
 ]
