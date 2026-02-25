@@ -116,5 +116,28 @@
     "mainImageIndex": 0,
     "date": "2026-01-29T16:33:07.804Z",
     "updatedAt": "2026-01-29T16:33:07.804Z"
+  },
+  {
+    "id": 1772035413052,
+    "title": {
+      "en": "Syntix Guardian",
+      "ru": "Синтикс Хранитель"
+    },
+    "description": {
+      "en": "Syntix Guardian is a privacy-first Chrome extension that helps users detect and understand web threats in real time. I designed and built the project end-to-end: MV3 architecture, UX, detection logic, storage layer, and release automation. The extension groups signals into tab/session Incidents with an aggregated risk score, confidence vs severity, and a clear “Why this alert” explanation to reduce noise and false positives. It analyzes navigation chains (redirect history and suspicious domain changes), detects scam/dark-pattern UI behaviors on pages, provides a site-permissions timeline with time-boxed grants (e.g., allow camera/microphone/notifications for 10 minutes, until tab close, or for 1 day), and includes an optional Extension Audit mode that profiles installed extensions by permission risk.\n\nBuilt with TypeScript (strict) and React for the UI (popup, options, side panel), and Manifest V3 with a service worker, content scripts, and Chrome APIs such as declarativeNetRequest, webRequest (observability), contentSettings, management (optional), alarms, and notifications. Data is stored locally using IndexedDB with retention policies (separate TTL for high/low risk, optional URL query logging). I implemented robust MV3 lifecycle handling (service worker unload/restart safety), anti-spam notification controls (cooldown, rate limits, dedup, digest), and a release gate with smoke tests and manifest validation to prevent broken builds.",
+      "ru": "Syntix Guardian - это расширение Chrome для обеспечения конфиденциальности, которое помогает пользователям обнаруживать и понимать Web угрозы в режиме реального времени. Я спроектировал и построил проект от начала до конца: архитектура MV3, UX, логика обнаружения, уровень хранения, и автоматизации выпуска. Расширение группирует сигналы в вкладку/сессию Инциденты с агрегированной оценкой риска, степенью уверенности против серьезности и четкое объяснение «Почему это предупреждение» для снижения шума и ложных срабатываний. Анализирует навигационные цепочки (историю перенаправления и подозрительные изменения домена), обнаруживает поведение пользовательского интерфейса мошенников/темных шаблонов на страницах, предоставляет временную шкалу разрешений сайта с ограниченными по времени грантами (e) g. , разрешить камеру/микрофон/уведомления в течение 10 минут, до закрытия вкладки или в течение 1 дня) и включает необязательный режим аудита расширений, который профилирует установленные расширения по риску разрешений. Создано с помощью TypeScript (strict) и React для пользовательского интерфейса (всплывающее окно, опции, боковая панель) и Manifest V3 с сервисным работником, сценариями контента и API Chrome, такими как declarativeNetRequest, webRequest (наблюдаемость), contentSettings, управление (необязательно), аварийные сигналы и уведомления. Данные хранятся локально с использованием IndexedDB с политиками хранения (отдельный TTL для высокого/низкого риска, необязательное ведение журнала URL-запросов). Я внедрил надежную обработку жизненного цикла MV3 (безопасность выгрузки/перезапуска работника службы), защиту от спама элементы управления уведомлениями (перезарядка, ограничения скорости, дедупликация, дайджест) и выпускные ворота с дымовыми тестами и проверки манифеста, чтобы предотвратить сломанные сборки."
+    },
+    "link": "https://chromewebstore.google.com/detail/ddafkekdeabofbohagjopfbigbbegnoe?utm_source=item-share-cb",
+    "images": [
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-1.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-2.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-3.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-4.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-5.png"
+    ],
+    "image": "data/images/1772035413052/2026-02-25t16-03-33-052z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-02-25T16:03:33.052Z",
+    "updatedAt": "2026-02-25T16:03:33.052Z"
   }
 ]
