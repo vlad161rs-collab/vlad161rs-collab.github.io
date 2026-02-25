@@ -1042,21 +1042,26 @@ function detectLanguage(text) {
 
 // Переключение языка
 async function setLanguage(lang) {
-    if (translations[lang]) {
-        currentLanguage = lang;
-        localStorage.setItem('portfolioLanguage', lang);
-        updateLanguageUI();
-        
-        // Мигрируем все проекты без переводов
+    if (!translations[lang] || currentLanguage === lang) {
+        return;
+    }
+
+    currentLanguage = lang;
+    localStorage.setItem('portfolioLanguage', lang);
+    updateLanguageUI();
+
+    // Apply the selected language immediately, without waiting for translation
+    // migration / GitHub save.
+    updateAllTexts();
+
+    try {
+        // РњРёРіСЂРёСЂСѓРµРј РІСЃРµ РїСЂРѕРµРєС‚С‹ Р±РµР· РїРµСЂРµРІРѕРґРѕРІ
         await migrateAllProjects();
-        
-        // On language switch we must refresh project cards too; skipping cards
-        // here leaves them in the previous language when no migration/save runs.
+    } finally {
+        // Re-apply in case migrateAllProjects produced fresh translations.
         updateAllTexts();
     }
 }
-
-// Миграция всех проектов без переводов
 async function migrateAllProjects() {
     console.log('Checking projects for translation migration...');
     let needsSave = false;
