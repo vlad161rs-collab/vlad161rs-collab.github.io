@@ -20,6 +20,190 @@ function getDefaultLanguage() {
 let currentLanguage = getDefaultLanguage(); // 'en' или 'ru'
 
 const PLACEHOLDER_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='600' viewBox='0 0 800 600'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop stop-color='%23666eea' offset='0'/><stop stop-color='%23764ba2' offset='1'/></linearGradient></defs><rect width='800' height='600' fill='url(%23g)'/></svg>";
+let draftProjectsCache = null;
+let draftStoreWriteSucceeded = null;
+
+const PORTFOLIO_DB_NAME = 'portfolio-drafts-db';
+const PORTFOLIO_DB_VERSION = 1;
+const PORTFOLIO_DB_STORE = 'kv';
+const PORTFOLIO_DRAFTS_KEY = 'projects';
+let portfolioDbPromise = null;
+
+function cloneProjectsData(value) {
+    if (!Array.isArray(value)) return [];
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch (error) {
+        console.warn('Failed to clone projects data:', error);
+        return value.map(item => ({ ...item }));
+    }
+}
+
+function isIndexedDbSupported() {
+    return typeof indexedDB !== 'undefined';
+}
+
+function openPortfolioDb() {
+    if (!isIndexedDbSupported()) {
+        return Promise.reject(new Error('IndexedDB is not supported'));
+    }
+    if (!portfolioDbPromise) {
+        portfolioDbPromise = new Promise((resolve, reject) => {
+            const request = indexedDB.open(PORTFOLIO_DB_NAME, PORTFOLIO_DB_VERSION);
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(PORTFOLIO_DB_STORE)) {
+                    db.createObjectStore(PORTFOLIO_DB_STORE);
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('Failed to open IndexedDB'));
+        });
+    }
+    return portfolioDbPromise;
+}
+
+async function idbGetValue(key) {
+    const db = await openPortfolioDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(PORTFOLIO_DB_STORE, 'readonly');
+        const store = tx.objectStore(PORTFOLIO_DB_STORE);
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('IndexedDB read failed'));
+    });
+}
+
+async function idbSetValue(key, value) {
+    const db = await openPortfolioDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(PORTFOLIO_DB_STORE, 'readwrite');
+        const store = tx.objectStore(PORTFOLIO_DB_STORE);
+        const request = store.put(value, key);
+        request.onsuccess = () => resolve(true);
+        request.onerror = () => reject(request.error || new Error('IndexedDB write failed'));
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB transaction failed'));
+    });
+}
+
+function getLegacyLocalProjectsSafe() {
+    const saved = localStorage.getItem('portfolioProjects');
+    if (!saved) return [];
+    try {
+        const localProjects = JSON.parse(saved);
+        return Array.isArray(localProjects) ? localProjects : [];
+    } catch (e) {
+        console.error('Error parsing localStorage:', e);
+        return [];
+    }
+}
+
+async function getLocalProjectsSafe() {
+    if (Array.isArray(draftProjectsCache)) {
+        return cloneProjectsData(draftProjectsCache);
+    }
+
+    if (isIndexedDbSupported()) {
+        try {
+            const storedProjects = await idbGetValue(PORTFOLIO_DRAFTS_KEY);
+            if (Array.isArray(storedProjects)) {
+                draftProjectsCache = cloneProjectsData(storedProjects);
+                return cloneProjectsData(draftProjectsCache);
+            }
+        } catch (error) {
+            console.error('Failed to load draft projects from IndexedDB:', error);
+        }
+    }
+
+    const legacyProjects = getLegacyLocalProjectsSafe();
+    draftProjectsCache = cloneProjectsData(legacyProjects);
+
+    if (legacyProjects.length > 0 && isIndexedDbSupported()) {
+        try {
+            await idbSetValue(PORTFOLIO_DRAFTS_KEY, cloneProjectsData(legacyProjects));
+            localStorage.removeItem('portfolioProjects');
+            console.log(`Migrated ${legacyProjects.length} project draft(s) from localStorage to IndexedDB`);
+        } catch (error) {
+            console.error('Failed to migrate legacy localStorage drafts to IndexedDB:', error);
+        }
+    }
+
+    return cloneProjectsData(draftProjectsCache);
+}
+
+function getCachedLocalProjectsSafe() {
+    return Array.isArray(draftProjectsCache) ? cloneProjectsData(draftProjectsCache) : [];
+}
+
+async function saveDraftProjects(projectList) {
+    draftProjectsCache = cloneProjectsData(projectList);
+    if (!isIndexedDbSupported()) {
+        draftStoreWriteSucceeded = false;
+        return false;
+    }
+    try {
+        await idbSetValue(PORTFOLIO_DRAFTS_KEY, draftProjectsCache);
+        draftStoreWriteSucceeded = true;
+        try {
+            localStorage.removeItem('portfolioProjects');
+        } catch (error) {
+            console.warn('Failed to clear legacy localStorage drafts:', error);
+        }
+        return true;
+    } catch (error) {
+        draftStoreWriteSucceeded = false;
+        console.error('Failed to save projects draft to IndexedDB:', error);
+        return false;
+    }
+}
+
+function getImageList(project) {
+    if (Array.isArray(project?.images) && project.images.length > 0) {
+        return project.images.slice();
+    }
+    if (project?.image) {
+        return [project.image];
+    }
+    return [];
+}
+
+function isBase64ImageDataUrl(value) {
+    return typeof value === 'string' && /^data:image\/[^;]+;base64,/.test(value);
+}
+
+function mimeTypeToExtension(mimeType) {
+    const normalized = (mimeType || '').toLowerCase();
+    if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
+    if (normalized.includes('png')) return 'png';
+    if (normalized.includes('webp')) return 'webp';
+    if (normalized.includes('gif')) return 'gif';
+    return 'bin';
+}
+
+function extractBase64ImageParts(dataUrl) {
+    const match = /^data:(image\/[^;]+);base64,(.+)$/s.exec(dataUrl || '');
+    if (!match) return null;
+    return {
+        mimeType: match[1],
+        base64: match[2]
+    };
+}
+
+function sanitizePathSegment(value) {
+    return String(value ?? '')
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'item';
+}
+
+function buildProjectImagePath(project, imageIndex, imageDataUrl) {
+    const parts = extractBase64ImageParts(imageDataUrl);
+    const ext = mimeTypeToExtension(parts?.mimeType);
+    const projectId = sanitizePathSegment(project?.id ?? 'project');
+    const versionTag = sanitizePathSegment(String(project?.updatedAt || project?.date || new Date().toISOString()).replace(/[:.]/g, '-'));
+    return `data/images/${projectId}/${versionTag}-${imageIndex + 1}.${ext}`;
+}
 
 // Переводы
 const translations = {
@@ -866,7 +1050,7 @@ async function setLanguage(lang) {
         // Мигрируем все проекты без переводов
         await migrateAllProjects();
         
-        updateAllTexts();
+        updateAllTexts({ skipProjectCards: true });
     }
 }
 
@@ -1177,7 +1361,8 @@ function updateLanguageUI() {
 }
 
 // Обновление всех текстов на странице
-function updateAllTexts() {
+function updateAllTexts(options = {}) {
+    const { skipProjectCards = false } = options;
     // Header
     if (authBtnText) {
         authBtnText.textContent = isAuthenticated ? t('logout') : t('login');
@@ -1246,15 +1431,16 @@ function updateAllTexts() {
     const enterBtn = document.querySelector('#authForm button[type="submit"]');
     if (enterBtn) enterBtn.textContent = t('enter');
     
-    const hasPreRendered = portfolioGrid?.dataset?.prerendered === 'true';
-    const cardCountMatches = portfolioGrid
-        ? portfolioGrid.querySelectorAll('.portfolio-item').length === projects.length
-        : false;
-    if (hasPreRendered && projects.length > 0 && cardCountMatches) {
-        updateProjectCardsText();
-        hydrateProjectCards();
-    } else {
-        renderProjects();
+    if (!skipProjectCards) {
+        const cardCountMatches = portfolioGrid
+            ? portfolioGrid.querySelectorAll('.portfolio-item').length === projects.length
+            : false;
+        if (projects.length > 0 && cardCountMatches) {
+            updateProjectCardsText();
+            hydrateProjectCards();
+        } else {
+            renderProjects();
+        }
     }
 }
 
@@ -1312,11 +1498,10 @@ function setGitHubToken(token) {
 // Загрузка проектов из JSON файла
 async function loadProjects() {
     const embeddedProjects = getEmbeddedProjectsSafe();
-    const localProjects = getLocalProjectsSafe();
+    const localProjects = await getLocalProjectsSafe();
     const hasLocalProjects = localProjects.length > 0;
     const hasEmbeddedProjects = embeddedProjects.length > 0;
     const hasPreRendered = portfolioGrid?.dataset?.prerendered === 'true';
-    const usingEmbedded = !hasLocalProjects && hasEmbeddedProjects;
 
     if (hasLocalProjects) {
         projects = localProjects;
@@ -1433,48 +1618,31 @@ async function loadProjects() {
         } else {
             console.warn('Failed to load projects.json, checking localStorage');
             if (!hasLocalProjects && !hasEmbeddedProjects) {
-                loadFromLocalStorage();
+                await loadFromLocalStorage();
             }
         }
     } catch (error) {
         console.error('Error loading projects:', error);
         // Fallback на localStorage если файл не найден
         if (!hasLocalProjects && !hasEmbeddedProjects) {
-            loadFromLocalStorage();
+            await loadFromLocalStorage();
         }
     }
 }
 
 // Загрузка из localStorage
-function loadFromLocalStorage() {
-    const saved = localStorage.getItem('portfolioProjects');
-    if (saved) {
-        try {
-            projects = JSON.parse(saved);
-            renderProjects();
-            console.log('Loaded projects from localStorage');
-            // Предлагаем миграцию
-            offerMigration();
-        } catch (e) {
-            projects = [];
-            renderProjects();
-        }
-    } else {
-        projects = [];
+async function loadFromLocalStorage() {
+    const localProjects = await getLocalProjectsSafe();
+    if (Array.isArray(localProjects) && localProjects.length > 0) {
+        projects = localProjects;
         renderProjects();
+        console.log('Loaded projects from browser draft storage');
+        offerMigration();
+        return;
     }
-}
 
-function getLocalProjectsSafe() {
-    const saved = localStorage.getItem('portfolioProjects');
-    if (!saved) return [];
-    try {
-        const localProjects = JSON.parse(saved);
-        return Array.isArray(localProjects) ? localProjects : [];
-    } catch (e) {
-        console.error('Error parsing localStorage:', e);
-        return [];
-    }
+    projects = [];
+    renderProjects();
 }
 
 function getEmbeddedProjectsSafe() {
@@ -1534,6 +1702,123 @@ async function migrateToServer() {
 }
 
 // Сохранение проектов через GitHub API
+function getDraftSaveStatusSuffix() {
+    if (draftStoreWriteSucceeded === true) {
+        return currentLanguage === 'ru'
+            ? ' Черновик сохранен в браузере (IndexedDB).'
+            : ' Draft saved in browser (IndexedDB).';
+    }
+    if (draftStoreWriteSucceeded === false) {
+        return currentLanguage === 'ru'
+            ? ' Черновик в браузере не сохранен.'
+            : ' Browser draft was not saved.';
+    }
+    return '';
+}
+
+async function getGitHubFileSha(token, filePath) {
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${filePath}?ref=main`, {
+        headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+        }
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        return data.sha || null;
+    }
+    if (response.status === 404) {
+        return null;
+    }
+
+    const body = await response.text().catch(() => '');
+    throw new Error(`Failed to get SHA for ${filePath}: HTTP ${response.status} ${body.substring(0, 200)}`);
+}
+
+async function putGitHubFileBase64(token, filePath, base64Content, message) {
+    const sha = await getGitHubFileSha(token, filePath);
+    const body = {
+        message,
+        content: base64Content,
+        branch: 'main'
+    };
+    if (sha) {
+        body.sha = sha;
+    }
+
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/contents/${filePath}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `token ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const responseText = await response.text().catch(() => '');
+        throw new Error(`GitHub PUT ${filePath} failed: HTTP ${response.status} ${responseText.substring(0, 200)}`);
+    }
+
+    return true;
+}
+
+async function materializeProjectImagesForServer(projectList, token) {
+    const uploadTasks = new Map();
+    const normalizedProjects = [];
+
+    for (const project of projectList) {
+        if (!project) continue;
+
+        const normalizedProject = { ...project };
+        const sourceImages = getImageList(project);
+        const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
+        const normalizedImages = [];
+
+        for (let index = 0; index < sourceImages.length; index++) {
+            const imageValue = sourceImages[index];
+            if (!isBase64ImageDataUrl(imageValue)) {
+                normalizedImages.push(imageValue);
+                continue;
+            }
+
+            const imageParts = extractBase64ImageParts(imageValue);
+            if (!imageParts) {
+                normalizedImages.push(imageValue);
+                continue;
+            }
+
+            const imagePath = buildProjectImagePath(project, index, imageValue);
+            if (!uploadTasks.has(imagePath)) {
+                uploadTasks.set(
+                    imagePath,
+                    putGitHubFileBase64(
+                        token,
+                        imagePath,
+                        imageParts.base64,
+                        `Upload portfolio image for project ${project.id ?? 'unknown'} (${index + 1})`
+                    )
+                );
+            }
+
+            await uploadTasks.get(imagePath);
+            normalizedImages.push(imagePath);
+        }
+
+        if (normalizedImages.length > 0) {
+            normalizedProject.images = normalizedImages;
+            normalizedProject.mainImageIndex = mainIndex >= 0 && mainIndex < normalizedImages.length ? mainIndex : 0;
+            normalizedProject.image = normalizedImages[normalizedProject.mainImageIndex] || normalizedImages[0] || null;
+        }
+
+        normalizedProjects.push(normalizedProject);
+    }
+
+    return normalizedProjects;
+}
+
 async function saveProjects() {
     // Проверяем, что массив projects содержит все проекты
     console.log(`Saving ${projects.length} project(s) to server:`, projects.map(p => p.title));
@@ -1553,43 +1838,25 @@ async function saveProjects() {
     }
     
     // Также проверяем localStorage - если там больше проектов, объединяем
-    const saved = localStorage.getItem('portfolioProjects');
-    if (saved) {
-        try {
-            const localProjects = JSON.parse(saved);
-            if (Array.isArray(localProjects) && localProjects.length > projects.length) {
-                console.log(`Found more projects in localStorage (${localProjects.length}) than in current array (${projects.length}). Merging...`);
-                const currentIds = new Set(projects.map(p => p.id));
-                const missingProjects = localProjects.filter(p => !currentIds.has(p.id));
-                if (missingProjects.length > 0) {
-                    projects = [...projects, ...missingProjects];
-                    console.log(`Added ${missingProjects.length} missing project(s) from localStorage:`, missingProjects.map(p => p.title));
-                }
-            }
-        } catch (e) {
-            console.error('Error checking localStorage:', e);
+    const localProjects = await getLocalProjectsSafe();
+    if (Array.isArray(localProjects) && localProjects.length > projects.length) {
+        console.log(`Found more projects in browser drafts (${localProjects.length}) than in current array (${projects.length}). Merging...`);
+        const currentIds = new Set(projects.map(p => p.id));
+        const missingProjects = localProjects.filter(p => !currentIds.has(p.id));
+        if (missingProjects.length > 0) {
+            projects = [...projects, ...missingProjects];
+            console.log(`Added ${missingProjects.length} missing project(s) from browser drafts:`, missingProjects.map(p => p.title));
         }
     }
     
     console.log(`Final projects array before save: ${projects.length} project(s):`, projects.map(p => p.title));
     
     // Также сохраняем в localStorage как резервную копию
-    try {
-        localStorage.setItem('portfolioProjects', JSON.stringify(projects));
-        console.log('Projects saved to localStorage:', projects.length);
-    } catch (error) {
-        console.error('Failed to save projects to localStorage:', error);
-        showNotification(
-            currentLanguage === 'ru'
-                ? 'Локальное хранилище переполнено. Данные сохранены только в текущей сессии.'
-                : 'Local storage is full. Data saved only for this session.',
-            'error'
-        );
-    }
-    
+    await saveDraftProjects(projects);
+
     const token = getGitHubToken();
     if (!token) {
-        console.warn('GitHub token not set. Projects saved to localStorage only.');
+        console.warn('GitHub token not set. Projects saved to browser drafts only.');
         // Показываем уведомление пользователю
         showGitHubTokenPrompt();
         return;
@@ -1597,6 +1864,15 @@ async function saveProjects() {
     
     try {
         // Сначала получаем текущий SHA файла (нужно для обновления)
+        const preparedProjects = await materializeProjectImagesForServer(projects, token);
+        const preparedSignature = getProjectsSignature(preparedProjects);
+        const currentSignature = getProjectsSignature(projects);
+        if (preparedSignature !== currentSignature) {
+            projects = preparedProjects;
+            await saveDraftProjects(projects);
+            console.log('Converted inline images to repository file paths before JSON save');
+        }
+
         const getFileResponse = await fetch(
             `https://api.github.com/repos/${GITHUB_REPO}/contents/${GITHUB_FILE_PATH}`,
             {
@@ -1737,11 +2013,11 @@ async function saveProjects() {
             
             console.error('Response status:', response.status);
             console.error('Error message:', errorMessage);
-            showNotification((currentLanguage === 'ru' ? 'Ошибка при сохранении: ' : 'Error saving: ') + errorMessage + (currentLanguage === 'ru' ? '. Данные сохранены локально.' : '. Data saved locally.'), 'error');
+            showNotification((currentLanguage === 'ru' ? 'Ошибка при сохранении: ' : 'Error saving: ') + errorMessage + getDraftSaveStatusSuffix(), 'error');
         }
     } catch (error) {
         console.error('Error saving to GitHub:', error);
-        showNotification(currentLanguage === 'ru' ? 'Ошибка при сохранении на сервер. Данные сохранены локально.' : 'Error saving to server. Data saved locally.', 'error');
+        showNotification((currentLanguage === 'ru' ? 'Ошибка при сохранении на сервер.' : 'Error saving to server.') + getDraftSaveStatusSuffix(), 'error');
     }
 }
 
@@ -1766,36 +2042,27 @@ function showGitHubTokenPrompt() {
         showNotification(t('tokenSaved'), 'success');
         
         // Проверяем, есть ли проекты в localStorage для миграции
-        const saved = localStorage.getItem('portfolioProjects');
-        if (saved) {
+        (async () => {
             try {
-                const localProjects = JSON.parse(saved);
+                const localProjects = await getLocalProjectsSafe();
                 if (Array.isArray(localProjects) && localProjects.length > 0 && projects.length === 0) {
-                    // Загружаем проекты из localStorage
                     projects = localProjects;
                     renderProjects();
-                    // Предлагаем миграцию
                     setTimeout(() => {
                         if (confirm(t('migrationOffer', { count: projects.length }))) {
                             migrateToServer();
                         }
                     }, 500);
                 } else {
-                    // Сохраняем текущие проекты
                     saveProjects();
                 }
             } catch (e) {
-                // Просто сохраняем текущие проекты
                 saveProjects();
             }
-        } else {
-            // Сохраняем текущие проекты
-            saveProjects();
-        }
+        })();
     }
 }
 
-// Показать уведомление
 function showNotification(message, type = 'info') {
     // Создаем элемент уведомления
     const notification = document.createElement('div');
@@ -1891,7 +2158,9 @@ function updateProjectCardsText() {
                 : (project.image ? [project.image] : []);
             const mainIndex = project.mainImageIndex !== undefined ? project.mainImageIndex : 0;
             const previewImage = images[mainIndex] || images[0] || project.image || PLACEHOLDER_IMAGE;
-            imgEl.src = previewImage;
+            if ((imgEl.getAttribute('src') || '') !== previewImage) {
+                imgEl.src = previewImage;
+            }
             imgEl.alt = title;
         }
 
@@ -2813,7 +3082,7 @@ if (document.readyState === 'loading') {
         await loadProjects();
         // Мигрируем старые проекты после загрузки
         await migrateAllProjects();
-        updateAllTexts();
+        updateAllTexts({ skipProjectCards: true });
     });
 } else {
     // DOM уже загружен
