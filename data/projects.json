@@ -103,7 +103,7 @@
       "en": "PermLens Syntix is an Android privacy and security audit app that builds a complete inventory of all installed applications, shows each app’s declared permissions in a clear, searchable interface, and tracks permission changes after updates so users can quickly spot when an app gains new sensitive access (such as location, camera, microphone, or contacts) and decide whether to keep it, restrict it, or uninstall it. It works fully on-device: the app reads the installed package list and each app’s declared permissions via the Android PackageManager, stores periodic snapshots locally, and automatically compares “before/after” states when apps are updated to generate a permission-diff history, with filters and categories that highlight the most sensitive permissions first.",
       "ru": "PermLens Syntix - это приложение для аудита конфиденциальности и безопасности Android, которое создает полную инвентаризацию всех установленных приложений, показывает объявленные разрешения каждого приложения в понятном, доступном для поиска интерфейсе и отслеживает изменения разрешений после обновлений, чтобы пользователи могли быстро определить, когда приложение получает новые конфиденциальные доступ (например, местоположение, камера, микрофон или контакты) и решить, сохранять ли его, ограничить или удалите его. Работает полностью на устройстве: приложение считывает список установленных пакетов и объявленные разрешения через Android PackageManager, сохраняет периодические снимки локально и автоматически сравнивает состояния «до/после», когда приложения обновляются для создания истории различий разрешений, с фильтры и категории, которые сначала выделяют наиболее конфиденциальные разрешения."
     },
-    "link": null,
+    "link": "https://play.google.com/store/apps/details?id=com.permlens.syntix&pcampaignid=web_share",
     "images": [
       "data/images/1769704387804/2026-01-29t16-33-07-804z-1.png",
       "data/images/1769704387804/2026-01-29t16-33-07-804z-2.png",
@@ -115,7 +115,7 @@
     "image": "data/images/1769704387804/2026-01-29t16-33-07-804z-1.png",
     "mainImageIndex": 0,
     "date": "2026-01-29T16:33:07.804Z",
-    "updatedAt": "2026-01-29T16:33:07.804Z"
+    "updatedAt": "2026-02-26T10:00:56.775Z"
   },
   {
     "id": 1772035413052,
