@@ -1451,9 +1451,20 @@ function updateAllTexts(options = {}) {
     }
 }
 
-// Пароль администратора (можно изменить)
-// Для безопасности в реальном проекте используйте хеширование и серверную проверку
-const ADMIN_PASSWORD = 'ADMIN_PASSWORD_REMOVED'; // Измените на свой пароль
+// Хеш локального админ-пароля. Сам пароль хранится только локально в .admin-password.local.
+const ADMIN_PASSWORD_HASH = '5c684f63882d604efbe2779e368e20247a72f69e0e620422fe39eecb7f5923e0';
+
+async function sha256Hex(value) {
+    if (!window.crypto?.subtle) {
+        throw new Error('Secure password hashing is unavailable in this browser context.');
+    }
+
+    const data = new TextEncoder().encode(value);
+    const hash = await window.crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+}
 
 // Элементы DOM
 const portfolioGrid = document.getElementById('portfolioGrid');
@@ -2432,8 +2443,18 @@ function showAuthModal() {
 }
 
 // Вход в систему
-function login(password) {
-    if (password === ADMIN_PASSWORD) {
+async function login(password) {
+    let passwordHash;
+    try {
+        passwordHash = await sha256Hex(password);
+    } catch (error) {
+        authStatus.textContent = t('wrongPassword');
+        authStatus.className = 'auth-status error';
+        authStatus.style.display = 'block';
+        return false;
+    }
+
+    if (passwordHash === ADMIN_PASSWORD_HASH) {
         isAuthenticated = true;
         localStorage.setItem('portfolioAuth', JSON.stringify({
             timestamp: Date.now()
@@ -2599,10 +2620,10 @@ if (authBtn) {
 }
 
 // Обработка формы авторизации
-authForm.addEventListener('submit', (e) => {
+authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const password = document.getElementById('adminPassword').value;
-    login(password);
+    await login(password);
 });
 
 // Закрытие модального окна авторизации
