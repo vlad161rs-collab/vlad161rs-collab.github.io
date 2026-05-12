@@ -49,7 +49,7 @@
         <div class="container">
             <div class="portfolio-grid" id="portfolioGrid" data-prerendered="true">
 <!-- PORTFOLIO_GRID_START -->
-                                <div class="portfolio-item" data-index="0">
+                                        <div class="portfolio-item" data-index="0">
             <img src="data/images/1765586958742/2026-01-29t16-10-11-786z-1.png" alt="Personal Financial Management" class="portfolio-item-image" loading="lazy" decoding="async">
             <div class="portfolio-item-content">
                 <h3 class="portfolio-item-title">Personal Financial Management</h3>
@@ -90,6 +90,69 @@
             <div class="portfolio-item-content">
                 <h3 class="portfolio-item-title">PermLens Syntix</h3>
                 <p class="portfolio-item-description">PermLens Syntix is an Android privacy and security audit app that builds a complete inventory of all installed applications, shows each app’s declared permissions in a clear, searchable interface, and tracks permission changes after updates so users can quickly spot when an app gains new sensitive access (such as location, camera, microphone, or contacts) and decide whether to keep it, restrict it, or uninstall it. It works fully on-device: the app reads the installed package list and each app’s declared permissions via the Android PackageManager, stores periodic snapshots locally, and automatically compares “before/after” states when apps are updated to generate a permission-diff history, with filters and categories that highlight the most sensitive permissions first.</p>
+                <div class="portfolio-item-actions">
+                    <button class="btn-icon" type="button" data-action="view">View</button>
+                </div>
+            </div>
+        </div>        <div class="portfolio-item" data-index="5">
+            <img src="data/images/1772035413052/2026-02-25t16-03-33-052z-1.png" alt="Syntix Guardian" class="portfolio-item-image" loading="lazy" decoding="async">
+            <div class="portfolio-item-content">
+                <h3 class="portfolio-item-title">Syntix Guardian</h3>
+                <p class="portfolio-item-description">Syntix Guardian is a privacy-first Chrome extension that helps users detect and understand web threats in real time. I designed and built the project end-to-end: MV3 architecture, UX, detection logic, storage layer, and release automation. The extension groups signals into tab/session Incidents with an aggregated risk score, confidence vs severity, and a clear “Why this alert” explanation to reduce noise and false positives. It analyzes navigation chains (redirect history and suspicious domain changes), detects scam/dark-pattern UI behaviors on pages, provides a site-permissions timeline with time-boxed grants (e.g., allow camera/microphone/notifications for 10 minutes, until tab close, or for 1 day), and includes an optional Extension Audit mode that profiles installed extensions by permission risk. Built with TypeScript (strict) and React for the UI (popup, options, side panel), and Manifest V3 with a service worker, content scripts, and Chrome APIs such as declarativeNetRequest, webRequest (observability), contentSettings, management (optional), alarms, and notifications. Data is stored locally using IndexedDB with retention policies (separate TTL for high/low risk, optional URL query logging). I implemented robust MV3 lifecycle handling (service worker unload/restart safety), anti-spam notification controls (cooldown, rate limits, dedup, digest), and a release gate with smoke tests and manifest validation to prevent broken builds.</p>
+                <div class="portfolio-item-actions">
+                    <button class="btn-icon" type="button" data-action="view">View</button>
+                </div>
+            </div>
+        </div>        <div class="portfolio-item" data-index="6">
+            <img src="data/images/1772035625302/2026-02-25t16-07-05-302z-1.png" alt="CutList Syntix" class="portfolio-item-image" loading="lazy" decoding="async">
+            <div class="portfolio-item-content">
+                <h3 class="portfolio-item-title">CutList Syntix</h3>
+                <p class="portfolio-item-description">CutList Syntix is an offline Android app for sheet cutting optimization and CNC nesting CAM. I built the full workflow end-to-end: projects (materials, sheets, parts/contours), deterministic layout generation, workshop-friendly execution, and production exports. The app supports saw/guillotine cut planning with PDF cut plans and a step-by-step Workshop mode, plus CNC nesting from SVG contours with a CAM pipeline (tool offsets, holes→outer order, lead-in/out, Z step-downs, smart tabs, and validation) and GRBL G-code (.nc) export. The product is offline-first (no accounts/cloud) and uses local persistence for all data and run history.</p>
+                <div class="portfolio-item-actions">
+                    <button class="btn-icon" type="button" data-action="view">View</button>
+                </div>
+            </div>
+        </div>        <div class="portfolio-item" data-index="7">
+            <img src="data/images/1778606258261/2026-05-12t17-17-38-261z-1.png" alt="BlockTrek" class="portfolio-item-image" loading="lazy" decoding="async">
+            <div class="portfolio-item-content">
+                <h3 class="portfolio-item-title">BlockTrek</h3>
+                <p class="portfolio-item-description">BlockTrek is a mobile puzzle game built around shape placement, route progression, and repeatable meta systems. I implemented the gameplay loop in a split core/Android architecture with libGDX-style scene rendering, deterministic run state, procedural sound, responsive layouts, and local persistence. The game includes Classic 10x10 play, Quick 8x8 score attacks, Rush pressure mode, and a Daily Route mode driven by a shared UTC seed, streak tracking, local leaderboard data, and share-ready run summaries. The progression layer expands the basic block puzzler into a longer-term loop: Season Map nodes, quest tiles, fragment collections, claimable rewards, cosmetic skins, biome unlocks, weekly event rotations, and anti-frustration tuning all come from data-driven JSON configs. I also covered the system with focused tests for gameplay state, persistence snapshots, quest resolution, weighted piece generation, meta progression, and config resilience.</p>
+                <div class="portfolio-item-actions">
+                    <button class="btn-icon" type="button" data-action="view">View</button>
+                </div>
+            </div>
+        </div>        <div class="portfolio-item" data-index="8">
+            <img src="data/images/1778606258262/2026-05-12t17-17-38-262z-1.png" alt="LuxDeal Syntix" class="portfolio-item-image" loading="lazy" decoding="async">
+            <div class="portfolio-item-content">
+                <h3 class="portfolio-item-title">LuxDeal Syntix</h3>
+                <p class="portfolio-item-description">LuxDeal Syntix is a local-first desktop workspace for branded-stock discovery, scoring, queue automation, and KP draft preparation. I built it as an Electron shell around a React + Vite interface and a fully local FastAPI + SQLite backend, so the main workflow runs without sending business data to an external service. The product supports legal ingestion from APIs, CSV, email files, manual links, and manual entry, with curated adapters for 11 branded sources. The application connects market research to execution: dashboard KPIs, live market filters, capture workflows, source-health operations, saved search profiles, watchlists, inventory lifecycle tracking, queue retry/backoff, FX normalization, backups, and restore flows. It also computes explainable trust, fake-risk, resale, and deal scores, then prepares Serbian KP draft text and photo checklists for listings. Desktop packaging, auto-update hooks, signed-build preparation, CI smoke coverage, and backend/frontend validation round it out as a practical release-grade tool rather than a demo screen.</p>
+                <div class="portfolio-item-actions">
+                    <button class="btn-icon" type="button" data-action="view">View</button>
+                </div>
+            </div>
+        </div>        <div class="portfolio-item" data-index="9">
+            <img src="data/images/1778606258263/2026-05-12t17-17-38-263z-1.png" alt="ContextOS" class="portfolio-item-image" loading="lazy" decoding="async">
+            <div class="portfolio-item-content">
+                <h3 class="portfolio-item-title">ContextOS</h3>
+                <p class="portfolio-item-description">ContextOS is an Android launcher that changes the device experience by context mode instead of treating every moment the same. I built it with Kotlin, Jetpack Compose, Room, and Android background services for notifications, trigger reception, catalog sync, and usage-aware behavior. The system supports Deep Work, Walk/Commute, Home Chill, and Sleep Detox modes, each with its own launcher presentation, app visibility rules, controls, and interruption policy. The product goes beyond a launcher skin: onboarding collects communication persona and environment anchors, the Smart Dock and mode matrix personalize access, and settings expose Wi-Fi/Bluetooth/time triggers, app exceptions, office pins, timeline history, silent-digest privacy controls, and one-tap rollback options. Deep Work can block distracting apps with an emergency bypass and digest muted notifications; Walk adds big-tile controls, headset/car TTS, swipeable media actions, and local voice notes; Sleep adds OLED-black UI, alarm-aware countdown, DND integration, and repeat-caller handling. The implementation is fully local and designed around explicit permission health checks so the app remains understandable rather than opaque.</p>
+                <div class="portfolio-item-actions">
+                    <button class="btn-icon" type="button" data-action="view">View</button>
+                </div>
+            </div>
+        </div>        <div class="portfolio-item" data-index="10">
+            <img src="data/images/1778606258264/2026-05-12t17-17-38-264z-1.png" alt="GameBoost Syntix" class="portfolio-item-image" loading="lazy" decoding="async">
+            <div class="portfolio-item-content">
+                <h3 class="portfolio-item-title">GameBoost Syntix</h3>
+                <p class="portfolio-item-description">GameBoost Syntix is a WinUI 3 desktop utility for switching Windows into a reversible gaming profile without forcing users to remember every low-level toggle. I built a single control surface that detects the current graphics adapter, shows the active driver context, snapshots the original machine state, applies supported Windows and vendor-side tweaks, and restores everything later through the same UI. The optimizer manages power-plan selection, Game Mode and capture-related registry values, supported AMD overlay/DVR adjustments, and conservative cleanup of selected background apps while protecting browsers, antivirus components, shell processes, and core Windows services. GPU detection uses vendor APIs where available and falls back to `dxdiag` parsing, while status refresh, saved snapshots, restore-point awareness, and a bootstrapper-ready Windows build make the tool practical for real use rather than a one-shot script.</p>
+                <div class="portfolio-item-actions">
+                    <button class="btn-icon" type="button" data-action="view">View</button>
+                </div>
+            </div>
+        </div>        <div class="portfolio-item" data-index="11">
+            <img src="data/images/1778606258265/2026-05-12t17-17-38-265z-1.png" alt="TextScan Syntix" class="portfolio-item-image" loading="lazy" decoding="async">
+            <div class="portfolio-item-content">
+                <h3 class="portfolio-item-title">TextScan Syntix</h3>
+                <p class="portfolio-item-description">TextScan Syntix is a Manifest V3 Chrome extension for offline OCR of images, screenshots, and manually selected page regions. I designed the workflow around local neural models instead of cloud requests: users can capture the current tab, highlight an exact region, or run OCR from the context menu, then immediately receive recognized text inside a page overlay. The extension includes multilingual presets, auto-copy behavior, light/dark result themes, TXT export, image-protection fallbacks, and progress-aware OCR states. Under the hood it coordinates popup controls, content-script overlays, offscreen execution, screenshot capture, clipboard writes, context-menu flows, and local storage-backed logs/settings. The project is aimed at practical browser-side extraction where privacy, speed, and repeatable UX matter more than sending every screenshot to an external service.</p>
                 <div class="portfolio-item-actions">
                     <button class="btn-icon" type="button" data-action="view">View</button>
                 </div>
@@ -308,6 +371,156 @@
     "mainImageIndex": 0,
     "date": "2026-01-29T16:33:07.804Z",
     "updatedAt": "2026-01-29T16:33:07.804Z"
+  },
+  {
+    "id": 1772035413052,
+    "title": {
+      "en": "Syntix Guardian",
+      "ru": "Синтикс Хранитель"
+    },
+    "description": {
+      "en": "Syntix Guardian is a privacy-first Chrome extension that helps users detect and understand web threats in real time. I designed and built the project end-to-end: MV3 architecture, UX, detection logic, storage layer, and release automation. The extension groups signals into tab/session Incidents with an aggregated risk score, confidence vs severity, and a clear “Why this alert” explanation to reduce noise and false positives. It analyzes navigation chains (redirect history and suspicious domain changes), detects scam/dark-pattern UI behaviors on pages, provides a site-permissions timeline with time-boxed grants (e.g., allow camera/microphone/notifications for 10 minutes, until tab close, or for 1 day), and includes an optional Extension Audit mode that profiles installed extensions by permission risk.\n\nBuilt with TypeScript (strict) and React for the UI (popup, options, side panel), and Manifest V3 with a service worker, content scripts, and Chrome APIs such as declarativeNetRequest, webRequest (observability), contentSettings, management (optional), alarms, and notifications. Data is stored locally using IndexedDB with retention policies (separate TTL for high/low risk, optional URL query logging). I implemented robust MV3 lifecycle handling (service worker unload/restart safety), anti-spam notification controls (cooldown, rate limits, dedup, digest), and a release gate with smoke tests and manifest validation to prevent broken builds.",
+      "ru": "Syntix Guardian - это расширение Chrome для обеспечения конфиденциальности, которое помогает пользователям обнаруживать и понимать Web угрозы в режиме реального времени. Я спроектировал и построил проект от начала до конца: архитектура MV3, UX, логика обнаружения, уровень хранения, и автоматизации выпуска. Расширение группирует сигналы в вкладку/сессию Инциденты с агрегированной оценкой риска, степенью уверенности против серьезности и четкое объяснение «Почему это предупреждение» для снижения шума и ложных срабатываний. Анализирует навигационные цепочки (историю перенаправления и подозрительные изменения домена), обнаруживает поведение пользовательского интерфейса мошенников/темных шаблонов на страницах, предоставляет временную шкалу разрешений сайта с ограниченными по времени грантами (e) g. , разрешить камеру/микрофон/уведомления в течение 10 минут, до закрытия вкладки или в течение 1 дня) и включает необязательный режим аудита расширений, который профилирует установленные расширения по риску разрешений. Создано с помощью TypeScript (strict) и React для пользовательского интерфейса (всплывающее окно, опции, боковая панель) и Manifest V3 с сервисным работником, сценариями контента и API Chrome, такими как declarativeNetRequest, webRequest (наблюдаемость), contentSettings, управление (необязательно), аварийные сигналы и уведомления. Данные хранятся локально с использованием IndexedDB с политиками хранения (отдельный TTL для высокого/низкого риска, необязательное ведение журнала URL-запросов). Я внедрил надежную обработку жизненного цикла MV3 (безопасность выгрузки/перезапуска работника службы), защиту от спама элементы управления уведомлениями (перезарядка, ограничения скорости, дедупликация, дайджест) и выпускные ворота с дымовыми тестами и проверки манифеста, чтобы предотвратить сломанные сборки."
+    },
+    "link": "https://chromewebstore.google.com/detail/ddafkekdeabofbohagjopfbigbbegnoe?utm_source=item-share-cb",
+    "images": [
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-1.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-2.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-3.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-4.png",
+      "data/images/1772035413052/2026-02-25t16-03-33-052z-5.png"
+    ],
+    "image": "data/images/1772035413052/2026-02-25t16-03-33-052z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-02-25T16:03:33.052Z",
+    "updatedAt": "2026-02-25T16:03:33.052Z"
+  },
+  {
+    "id": 1772035625302,
+    "title": {
+      "en": "CutList Syntix",
+      "ru": "Синтикс списка вырезов"
+    },
+    "description": {
+      "en": "CutList Syntix is an offline Android app for sheet cutting optimization and CNC nesting CAM. I built the full workflow end-to-end: projects (materials, sheets, parts/contours), deterministic layout generation, workshop-friendly execution, and production exports. The app supports saw/guillotine cut planning with PDF cut plans and a step-by-step Workshop mode, plus CNC nesting from SVG contours with a CAM pipeline (tool offsets, holes→outer order, lead-in/out, Z step-downs, smart tabs, and validation) and GRBL G-code (.nc) export. The product is offline-first (no accounts/cloud) and uses local persistence for all data and run history.",
+      "ru": "CutList Syntix - это автономное приложение для Android для оптимизации резки листов и вложенности С ЧПУ. Я построил полный рабочий процесс от начала до конца: проекты (материалы, листы, детали/контуры), детерминированные создание макета, удобное для мастерских исполнение и экспорт продукции. Приложение поддерживает планирование резки пилой/гильотиной с планами резки в формате PDF и пошаговым режимом семинара, плюс вложение ЧПУ из контуров SVG с КУЛАЧКОВЫМ трубопроводом (смещения инструмента,→ внешний порядок отверстий, ввод/вывод, Z-понижение, интеллектуальные вкладки и валидация) и G-код GRBL (. nc) экспорт. Продукт работает в автономном режиме (без учетных записей/облака) и использует локальную персистенцию для всех данных и запуска историю его родины."
+    },
+    "link": null,
+    "images": [
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-1.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-2.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-3.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-4.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-5.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-6.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-7.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-8.png",
+      "data/images/1772035625302/2026-02-25t16-07-05-302z-9.png"
+    ],
+    "image": "data/images/1772035625302/2026-02-25t16-07-05-302z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-02-25T16:07:05.302Z",
+    "updatedAt": "2026-02-25T16:07:05.302Z"
+  },
+  {
+    "id": 1778606258261,
+    "title": {
+      "en": "BlockTrek",
+      "ru": "BlockTrek"
+    },
+    "description": {
+      "en": "BlockTrek is a mobile puzzle game built around shape placement, route progression, and repeatable meta systems. I implemented the gameplay loop in a split core/Android architecture with libGDX-style scene rendering, deterministic run state, procedural sound, responsive layouts, and local persistence. The game includes Classic 10x10 play, Quick 8x8 score attacks, Rush pressure mode, and a Daily Route mode driven by a shared UTC seed, streak tracking, local leaderboard data, and share-ready run summaries.\n\nThe progression layer expands the basic block puzzler into a longer-term loop: Season Map nodes, quest tiles, fragment collections, claimable rewards, cosmetic skins, biome unlocks, weekly event rotations, and anti-frustration tuning all come from data-driven JSON configs. I also covered the system with focused tests for gameplay state, persistence snapshots, quest resolution, weighted piece generation, meta progression, and config resilience.",
+      "ru": "BlockTrek - мобильная головоломка про размещение фигур, маршрутный прогресс и повторяемые мета-системы. Я реализовал игровой цикл в разделённой core/Android-архитектуре со сценическим рендерингом в духе libGDX, детерминированным состоянием забега, процедурным звуком, адаптивными раскладками и локальным сохранением. В игре есть Classic на поле 10x10, быстрый режим Quick 8x8, напряжённый Rush и Daily Route с общим UTC-seed, сериями входов, локальным лидербордом и результатами, которыми удобно делиться.\n\nСлой прогрессии превращает базовый блочный пазл в более длинный цикл: Season Map, квестовые клетки, сбор фрагментов, выдача наград, косметические скины, открытие биомов, недельные события и антифрустрационная настройка управляются через JSON-конфиги. Для ключевой логики предусмотрены отдельные тесты на состояние матча, снапшоты сохранений, квесты, взвешенную генерацию фигур, мета-прогрессию и устойчивость конфигурации."
+    },
+    "link": null,
+    "images": [
+      "data/images/1778606258261/2026-05-12t17-17-38-261z-1.png",
+      "data/images/1778606258261/2026-05-12t17-17-38-261z-2.png"
+    ],
+    "image": "data/images/1778606258261/2026-05-12t17-17-38-261z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-05-12T17:17:38.261Z",
+    "updatedAt": "2026-05-12T17:17:38.261Z"
+  },
+  {
+    "id": 1778606258262,
+    "title": {
+      "en": "LuxDeal Syntix",
+      "ru": "LuxDeal Syntix"
+    },
+    "description": {
+      "en": "LuxDeal Syntix is a local-first desktop workspace for branded-stock discovery, scoring, queue automation, and KP draft preparation. I built it as an Electron shell around a React + Vite interface and a fully local FastAPI + SQLite backend, so the main workflow runs without sending business data to an external service. The product supports legal ingestion from APIs, CSV, email files, manual links, and manual entry, with curated adapters for 11 branded sources.\n\nThe application connects market research to execution: dashboard KPIs, live market filters, capture workflows, source-health operations, saved search profiles, watchlists, inventory lifecycle tracking, queue retry/backoff, FX normalization, backups, and restore flows. It also computes explainable trust, fake-risk, resale, and deal scores, then prepares Serbian KP draft text and photo checklists for listings. Desktop packaging, auto-update hooks, signed-build preparation, CI smoke coverage, and backend/frontend validation round it out as a practical release-grade tool rather than a demo screen.",
+      "ru": "LuxDeal Syntix - локальный desktop-инструмент для поиска брендового стока, скоринга предложений, автоматизации очередей и подготовки черновиков KP. Я собрал его как Electron-оболочку вокруг интерфейса React + Vite и полностью локального backend на FastAPI + SQLite, поэтому основной рабочий процесс не требует передачи бизнес-данных во внешний сервис. Поддерживается легальный импорт через API, CSV, email-файлы, ручные ссылки и ручной ввод, а также набор адаптеров для 11 брендовых источников.\n\nПриложение связывает рыночный анализ с операционной работой: KPI-дашборд, фильтры рынка, capture-потоки, контроль здоровья источников, сохранённые поисковые профили, watchlist, инвентарь, очереди с retry/backoff, нормализация валют, резервные копии и восстановление. Поверх этого считаются объяснимые trust score, fake-risk, resale estimate и deal score, а затем формируются сербские черновики KP и чеклисты фотографий. Упаковка desktop-релиза, задел под автообновление, подготовка подписанных билдов, CI smoke-проверки и валидация backend/frontend делают проект полноценным прикладным продуктом, а не просто витриной интерфейса."
+    },
+    "link": null,
+    "images": [
+      "data/images/1778606258262/2026-05-12t17-17-38-262z-1.png",
+      "data/images/1778606258262/2026-05-12t17-17-38-262z-2.png"
+    ],
+    "image": "data/images/1778606258262/2026-05-12t17-17-38-262z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-05-12T17:17:38.262Z",
+    "updatedAt": "2026-05-12T17:17:38.262Z"
+  },
+  {
+    "id": 1778606258263,
+    "title": {
+      "en": "ContextOS",
+      "ru": "ContextOS"
+    },
+    "description": {
+      "en": "ContextOS is an Android launcher that changes the device experience by context mode instead of treating every moment the same. I built it with Kotlin, Jetpack Compose, Room, and Android background services for notifications, trigger reception, catalog sync, and usage-aware behavior. The system supports Deep Work, Walk/Commute, Home Chill, and Sleep Detox modes, each with its own launcher presentation, app visibility rules, controls, and interruption policy.\n\nThe product goes beyond a launcher skin: onboarding collects communication persona and environment anchors, the Smart Dock and mode matrix personalize access, and settings expose Wi-Fi/Bluetooth/time triggers, app exceptions, office pins, timeline history, silent-digest privacy controls, and one-tap rollback options. Deep Work can block distracting apps with an emergency bypass and digest muted notifications; Walk adds big-tile controls, headset/car TTS, swipeable media actions, and local voice notes; Sleep adds OLED-black UI, alarm-aware countdown, DND integration, and repeat-caller handling. The implementation is fully local and designed around explicit permission health checks so the app remains understandable rather than opaque.",
+      "ru": "ContextOS - Android-лаунчер, который меняет опыт работы с телефоном по контекстному режиму, а не показывает одно и то же состояние всегда. Я реализовал его на Kotlin, Jetpack Compose и Room, дополнив фоновыми Android-сервисами для уведомлений, триггеров, синхронизации каталога приложений и поведения, зависящего от фактического использования устройства. Система поддерживает режимы Deep Work, Walk/Commute, Home Chill и Sleep Detox, причём у каждого свой экран, набор доступных приложений, элементы управления и политика вмешательств.\n\nПроект выходит далеко за рамки визуальной оболочки лаунчера: onboarding собирает коммуникационный профиль и контекстные якоря, Smart Dock и матрица режимов настраивают доступ, а настройки позволяют управлять Wi-Fi/Bluetooth/временными триггерами, исключениями приложений, office pin-ами, историей контекста, privacy-настройками silent digest и откатом «как было до ContextOS». Deep Work блокирует отвлекающие приложения с аварийным bypass и дайджестом скрытых уведомлений; Walk добавляет крупные плитки, TTS через гарнитуру/авто, жесты для медиа и локальные голосовые заметки; Sleep включает OLED-black сцену, честный countdown до будильника, DND-интеграцию и обработку повторных звонков. Всё работает локально и сопровождается явными health-check подсказками по разрешениям, чтобы система оставалась прозрачной для пользователя."
+    },
+    "link": null,
+    "images": [
+      "data/images/1778606258263/2026-05-12t17-17-38-263z-1.png",
+      "data/images/1778606258263/2026-05-12t17-17-38-263z-2.png",
+      "data/images/1778606258263/2026-05-12t17-17-38-263z-3.png",
+      "data/images/1778606258263/2026-05-12t17-17-38-263z-4.png"
+    ],
+    "image": "data/images/1778606258263/2026-05-12t17-17-38-263z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-05-12T17:17:38.263Z",
+    "updatedAt": "2026-05-12T17:17:38.263Z"
+  },
+  {
+    "id": 1778606258264,
+    "title": {
+      "en": "GameBoost Syntix",
+      "ru": "GameBoost Syntix"
+    },
+    "description": {
+      "en": "GameBoost Syntix is a WinUI 3 desktop utility for switching Windows into a reversible gaming profile without forcing users to remember every low-level toggle. I built a single control surface that detects the current graphics adapter, shows the active driver context, snapshots the original machine state, applies supported Windows and vendor-side tweaks, and restores everything later through the same UI.\n\nThe optimizer manages power-plan selection, Game Mode and capture-related registry values, supported AMD overlay/DVR adjustments, and conservative cleanup of selected background apps while protecting browsers, antivirus components, shell processes, and core Windows services. GPU detection uses vendor APIs where available and falls back to `dxdiag` parsing, while status refresh, saved snapshots, restore-point awareness, and a bootstrapper-ready Windows build make the tool practical for real use rather than a one-shot script.",
+      "ru": "GameBoost Syntix - WinUI 3-приложение для перевода Windows в обратимый игровой профиль без необходимости вручную помнить десятки системных переключателей. Я сделал единый control surface, который определяет активный графический адаптер, показывает контекст драйвера, сохраняет исходное состояние машины, применяет поддерживаемые Windows- и vendor-side настройки, а затем восстанавливает всё обратно через тот же интерфейс.\n\nОптимизатор управляет схемой электропитания, значениями Game Mode и capture/Game DVR, поддерживаемыми AMD overlay/DVR-настройками и аккуратным закрытием только выбранных фоновых приложений, одновременно защищая браузеры, антивирусы, shell-процессы и критичные службы Windows. Определение GPU использует vendor API там, где это возможно, и переходит на разбор отчёта `dxdiag`, а регулярное обновление статуса, сохранённые снапшоты, понимание restore-point и готовый Windows-билд с bootstrapper делают проект практичным desktop-инструментом, а не одноразовым скриптом."
+    },
+    "link": null,
+    "images": [
+      "data/images/1778606258264/2026-05-12t17-17-38-264z-1.png"
+    ],
+    "image": "data/images/1778606258264/2026-05-12t17-17-38-264z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-05-12T17:17:38.264Z",
+    "updatedAt": "2026-05-12T17:17:38.264Z"
+  },
+  {
+    "id": 1778606258265,
+    "title": {
+      "en": "TextScan Syntix",
+      "ru": "TextScan Syntix"
+    },
+    "description": {
+      "en": "TextScan Syntix is a Manifest V3 Chrome extension for offline OCR of images, screenshots, and manually selected page regions. I designed the workflow around local neural models instead of cloud requests: users can capture the current tab, highlight an exact region, or run OCR from the context menu, then immediately receive recognized text inside a page overlay.\n\nThe extension includes multilingual presets, auto-copy behavior, light/dark result themes, TXT export, image-protection fallbacks, and progress-aware OCR states. Under the hood it coordinates popup controls, content-script overlays, offscreen execution, screenshot capture, clipboard writes, context-menu flows, and local storage-backed logs/settings. The project is aimed at practical browser-side extraction where privacy, speed, and repeatable UX matter more than sending every screenshot to an external service.",
+      "ru": "TextScan Syntix - расширение Chrome на Manifest V3 для офлайн-OCR изображений, скриншотов и вручную выделенных областей страницы. Я спроектировал поток вокруг локальных нейронных моделей, а не облачных запросов: пользователь может распознать текущую вкладку, выделить точную область или запустить OCR из контекстного меню, после чего сразу получает текст в оверлее поверх страницы.\n\nВ расширении есть многоязычные пресеты, автокопирование результата, светлая и тёмная тема окна, экспорт в TXT, fallback-логика для защищённых изображений и прогресс-статусы во время OCR. Внутри согласованно работают popup-контролы, content-script overlay, offscreen-контекст, захват скриншота вкладки, clipboard API, контекстные меню и локальное хранение логов/настроек. Проект рассчитан на практическое извлечение текста прямо в браузере, когда приватность, скорость и повторяемый UX важнее отправки каждого изображения на внешний сервис."
+    },
+    "link": null,
+    "images": [
+      "data/images/1778606258265/2026-05-12t17-17-38-265z-1.png"
+    ],
+    "image": "data/images/1778606258265/2026-05-12t17-17-38-265z-1.png",
+    "mainImageIndex": 0,
+    "date": "2026-05-12T17:17:38.265Z",
+    "updatedAt": "2026-05-12T17:17:38.265Z"
   }
 ]
     </script>
