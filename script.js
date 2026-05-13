@@ -1040,6 +1040,25 @@ function detectLanguage(text) {
     return cyrillicPattern.test(text) ? 'ru' : 'en';
 }
 
+function hasTranslationError(text) {
+    return typeof text === 'string' && TRANSLATION_ERROR_SNIPPETS.some(snippet => text.includes(snippet));
+}
+
+function isLocalizedTitleReady(text, targetLang) {
+    if (!text || !text.trim() || hasTranslationError(text)) return false;
+
+    const detectedLang = detectLanguage(text);
+    if (detectedLang === targetLang) return true;
+
+    // Brand and product names often intentionally stay Latin in the Russian UI.
+    return targetLang === 'ru' && detectedLang === 'en';
+}
+
+function isLocalizedDescriptionReady(text, targetLang) {
+    if (!text || !text.trim() || hasTranslationError(text)) return false;
+    return detectLanguage(text) === targetLang;
+}
+
 // Переключение языка
 async function setLanguage(lang) {
     if (!translations[lang] || currentLanguage === lang) {
@@ -1152,11 +1171,7 @@ async function migrateAllProjects() {
                 // Также проверяем, нужен ли перевод на текущий язык интерфейса
                 const currentTitle = project.title[currentLanguage];
                 const currentTitleLang = currentTitle ? detectLanguage(currentTitle) : null;
-                const needsCurrentLangTranslation = !currentTitle || 
-                    currentTitle.trim() === '' ||
-                    currentTitleLang !== currentLanguage ||
-                    currentTitle.includes('QUERY LENGTH LIMIT') || 
-                    currentTitle.includes('MAX ALLOWED QUERY');
+                const needsCurrentLangTranslation = !isLocalizedTitleReady(currentTitle, currentLanguage);
                 
                 if (needsTitleTranslation) {
                     console.log(`  → Translating title (${originalTitle.length} chars) from ${sourceLang} to ${targetLang}...`);
@@ -1223,11 +1238,7 @@ async function migrateAllProjects() {
                 const currentDesc = project.description[currentLanguage];
                 // Проверяем не только наличие, но и что текст действительно на нужном языке
                 const currentDescLang = currentDesc ? detectLanguage(currentDesc) : null;
-                const needsCurrentLangDescTranslation = !currentDesc || 
-                    currentDesc.trim() === '' ||
-                    currentDescLang !== currentLanguage ||
-                    currentDesc.includes('QUERY LENGTH LIMIT') || 
-                    currentDesc.includes('MAX ALLOWED QUERY');
+                const needsCurrentLangDescTranslation = !isLocalizedDescriptionReady(currentDesc, currentLanguage);
                 
                 if (needsDescTranslation) {
                     console.log(`  → Translating description (${originalDesc.length} chars) from ${sourceLang} to ${targetLang}...`);

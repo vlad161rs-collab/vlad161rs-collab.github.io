@@ -269,5 +269,28 @@
     "mainImageIndex": 0,
     "date": "2026-05-12T17:17:38.265Z",
     "updatedAt": "2026-05-12T17:17:38.265Z"
+  },
+  {
+    "id": 1778680398399,
+    "title": {
+      "en": "AetherLoop",
+      "ru": "AetherLoop"
+    },
+    "description": {
+      "en": "AetherLoop is a Windows desktop AI copilot for online interviews, live meetings, and technical practice. I built it as a protected PySide6 overlay that combines dual audio capture, real-time Deepgram transcription, OpenAI summarization, screenshot and vision analysis, hotkeys, and concise answer structure directly on top of the user's working screen. The app supports live coding, technical, general, system design, and training scenarios without forcing the user to switch between tabs during a call.\n\nThe product is not just an overlay. It includes a connected website and backend flow with a single account, trial access, tariff control, protected installer delivery, update manifest support, and a knowledge-base oriented workflow. The desktop side adds local context files, code-snippet indexing, optimized screenshot capture, click-through overlay behavior, capture-exclusion flags, and an offline faster-whisper fallback when streaming STT becomes unavailable or too slow. This makes AetherLoop a practical desktop product with a real site, access model, and release path rather than a static demo.",
+      "ru": "AetherLoop - Windows desktop AI-копайлот для онлайн-собеседований, живых созвонов и технической подготовки. Я сделал его как защищённый PySide6-оверлей, который объединяет двойной захват аудио, real-time транскрибацию через Deepgram, суммаризацию через OpenAI, анализ скриншотов и экрана, горячие клавиши и короткую структуру ответа прямо поверх рабочего окна пользователя. Приложение поддерживает live coding, technical, general, system design и тренировочные сценарии, не заставляя переключаться между вкладками во время звонка.\n\nПроект не ограничивается оверлеем. В нём есть связанный сайт и backend-поток с единым аккаунтом, пробным доступом, управлением тарифами, защищённой выдачей установщика, update manifest и сценарием работы с базой знаний. Desktop-часть добавляет локальные context-файлы, индексирование code snippets, оптимизированный захват скриншотов, click-through поведение оверлея, исключение из захвата экрана и offline fallback на faster-whisper, если потоковое STT недоступно или работает слишком медленно. Поэтому AetherLoop оформлен как практичный desktop-продукт с реальным сайтом, моделью доступа и релизным контуром, а не как статичная демо-страница."
+    },
+    "link": "https://aetherloop.ru/",
+    "images": [
+      "data/images/1778680398399/aetherloop-cover-icon.png",
+      "data/images/1778680398399/aetherloop-live-mode.png",
+      "data/images/1778680398399/aetherloop-mock-interview.png",
+      "data/images/1778680398399/aetherloop-settings.png",
+      "data/images/1778680398399/aetherloop-knowledge-base.png"
+    ],
+    "image": "data/images/1778680398399/aetherloop-cover-icon.png",
+    "mainImageIndex": 0,
+    "date": "2026-05-13T13:53:18.399Z",
+    "updatedAt": "2026-05-13T13:53:18.399Z"
   }
 ]
